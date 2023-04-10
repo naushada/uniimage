@@ -1,0 +1,249 @@
+#ifndef __uniimage__hpp__
+#define __uniimage__hpp__
+
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <termios.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/types.h>
+#include <signal.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <cerrno>
+#include <clocale>
+#include <cmath>
+#include <cstring>
+
+#include <vector>
+#include <iostream>
+#include <memory>
+#include <thread>
+#include <sstream>
+#include <unordered_map>
+#include <tuple>
+#include <getopt.h>
+#include <atomic>
+#include <variant>
+
+namespace noor {
+    class Uniimage;
+    struct response {
+        std::uint16_t type;
+        std::uint16_t command;
+        std::uint16_t messages_id;
+    };
+};
+
+class noor::Uniimage {
+    public:
+        //EMP (Embedded Micro Protocol) parser
+        enum EMP_COMMAND_TYPE : std::uint16_t {
+           Request = 0,
+           Command_OR_Notification = 1,
+           Response = 2,
+        };
+        enum EMP_COMMAND_ID : std::uint16_t {
+           RegisterGetVariable     = 104,          /**< Register to get notified immediately and when a path or sub path changes. */
+           RegisterVariable        = 105,          /**< Register to get notified when a path or sub path changes. */
+           UnregisterVariable      = 106,          /**< Unregister a previously registered notification. */
+           NotifyVariable          = 107,          /**< Notify a change in the monitored values. */
+           ExecVariable            = 108,          /**< Execute a node. */
+           RegisterExec            = 109,          /**< Register to get notified when a path is executed. */
+           NotifyExec              = 110,          /**< Notify that a path is executed. */
+           GetVariable             = 113,          /**< Recursively get values in a single request. */
+           SingleGetVariable       = 114,          /**< Get a single path value. */
+           SetVariable             = 115,          /**< Set one or more values. */
+           ListVariable            = 116,          /**< List direct children of a branch path. */
+           NotifyFd                = 200,          /**< Notify file descriptor passing. */
+        };
+
+	struct emp_t {
+	    emp_t() : m_type(0), m_command(0), m_message_id(0), m_response("") {}
+	    ~emp_t() {}
+	    std::uint16_t m_type;
+	    std::uint16_t m_command;
+	    std::uint16_t m_message_id;
+	    std::string m_response;
+	};
+
+        Uniimage(const std::string& role, const std::string& IP, std::uint16_t PORT, std::uint16_t web_port) {
+           m_is_tcp_server_down = true; 
+           do {
+               if(!role.compare("server")) {
+                   //start tcp server 
+		   tcp_server(IP, PORT);
+		   web_server(IP, web_port);
+		   break;
+               }		       
+               m_is_reg_ds = false;
+               std::int32_t channel = -1;
+               /* Set up the address we're going to bind to. */
+               bzero(&m_uds_server, sizeof(m_uds_server));
+               m_sock_name = "/var/run/treemgr/treemgr.sock";
+               m_uds_server.sun_family = PF_UNIX;
+               strncpy(m_uds_server.sun_path, m_sock_name.c_str(), sizeof(m_uds_server.sun_path) -1);
+               std::size_t len = sizeof(struct sockaddr_un);
+
+               channel = ::socket(PF_UNIX, SOCK_STREAM/*|SOCK_NONBLOCK*/, 0);
+               if(channel < 0) {
+                   std::cout << "Creation of Unix socket Failed" << std::endl;
+                   break;
+               }
+
+               /* set the reuse address flag so we don't get errors when restarting */
+               auto flag = 1;
+               if(::setsockopt(channel, SOL_SOCKET, SO_REUSEADDR, (std::int8_t *)&flag, sizeof(flag)) < 0 ) {
+                   std::cout << "Error: Could not set reuse address option on unix socket!" << std::endl;
+                   break;
+               }
+
+               auto rc = ::connect(channel, reinterpret_cast< struct sockaddr *>(&m_uds_server), len);
+               if(rc == -1) {
+                   std::cout << __FILE__ <<":"<<__LINE__ <<"Connect is failed errno: "<< std::strerror(errno) << std::endl;
+                   is_uds_client_connected(false);
+                   break;
+               }
+               uds_client_fd(channel);
+               is_uds_client_connected(true);
+
+               //TCP Client .... 
+               /* Set up the address we're going to bind to. */
+               bzero(&m_tcp_server, sizeof(m_tcp_server));
+               m_tcp_server.sin_family = AF_INET;
+               m_tcp_server.sin_port = htons(PORT);
+               m_tcp_server.sin_addr.s_addr = inet_addr(IP.c_str());
+               memset(m_tcp_server.sin_zero, 0, sizeof(m_tcp_server.sin_zero));
+               len = sizeof(m_tcp_server);
+
+               channel = ::socket(PF_INET, SOCK_STREAM/*|SOCK_NONBLOCK*/, 0);
+               if(channel < 0) {
+                   std::cout << "Creation of INET socket Failed" << std::endl;
+                   break;
+               }
+
+               /* set the reuse address flag so we don't get errors when restarting */
+               flag = 1;
+               if(::setsockopt(channel, SOL_SOCKET, SO_REUSEADDR, (std::int8_t *)&flag, sizeof(flag)) < 0 ) {
+                   std::cout << "Error: Could not set reuse address option on INET socket!" << std::endl;
+                   break;
+               }
+
+               rc = ::connect(channel, (struct sockaddr *) &m_tcp_server, len);
+               if(rc == -1) {
+		   if(errno != EINPROGRESS) {    
+                       std::cout << "Connect is failed errno: "<< std::strerror(errno) << std::endl;
+                       break;
+		   }
+                   is_tcp_client_connected(false);
+               } else {
+                   is_tcp_client_connected(true);
+                   tcp_client_fd(channel);
+	       }
+
+           } while(0);
+	}
+
+        ~Uniimage() {
+            close(uds_client_fd());
+            close(tcp_client_fd());
+            m_ds_request_list.clear();
+            m_client_list.clear();
+
+        }
+
+        emp_t rx(std::int32_t channel);
+        std::string tcp_rx(std::int32_t channel);
+        std::string web_rx(std::int32_t channel);
+        std::int32_t ds_tx(std::int32_t channel, const std::string& data);
+        std::int32_t tcp_tx(std::int32_t channel, const std::string& data);
+        std::string serialise(noor::Uniimage::EMP_COMMAND_TYPE type, noor::Uniimage::EMP_COMMAND_ID cmd, const std::string& data);
+        std::string packArguments(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
+        std::int32_t registerGetVariable(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
+        std::int32_t getVariable(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
+        std::int32_t getSingleVariable(const std::string& prefix);
+
+        void uds_client_fd(std::int32_t channel) {
+            m_uds_client_fd = channel;
+        }
+
+        void tcp_client_fd(std::int32_t channel) {
+            m_tcp_client_fd = channel;
+        }
+
+        void web_server_fd(std::int32_t channel) {
+            m_web_server_fd = channel;
+        }
+        std::int32_t uds_client_fd() const {
+            return(m_uds_client_fd);
+        }
+
+        std::int32_t tcp_client_fd() const {
+            return(m_tcp_client_fd);
+        }
+        std::int32_t web_server_fd() const {
+            return(m_web_server_fd);
+        }
+
+        void tcp_server_fd(std::int32_t channel) {
+            m_tcp_server_fd = channel;
+        }
+
+        std::int32_t tcp_server_fd() const {
+            return(m_tcp_server_fd);
+        }
+
+        bool is_uds_client_connected() {
+            return(m_client_list[uds_client_fd()]); 
+        }
+
+        void is_uds_client_connected(bool status) {
+            m_client_list[uds_client_fd()] = status;								
+        }
+
+        bool is_tcp_client_connected() {
+            return(m_client_list[tcp_client_fd()]); 
+        }
+
+        void is_tcp_client_connected(bool status) {
+            m_client_list[tcp_client_fd()] = status;								
+        }
+        std::int32_t start_client();
+        std::int32_t start_server();
+        std::int32_t tcp_server(const std::string& IP, std::uint16_t PORT);
+        std::int32_t web_server(const std::string& IP, std::uint16_t PORT);
+        void add_element(std::uint16_t type, std::uint16_t cmd, std::uint16_t msg_id, const std::string& prefiex, std::string rsp="default");
+        //std::atomic<std::uint16_t> m_message_id;
+    private:
+        std::int32_t m_uds_client_fd;
+        std::string m_sock_name;
+        struct sockaddr_un m_uds_server;
+        bool m_is_uds_client_connected;
+        std::int32_t m_tcp_client_fd;
+        std::int32_t m_tcp_server_fd;
+        std::uint16_t m_tcp_server_port;
+        struct sockaddr_in m_tcp_server;
+        std::atomic<std::uint16_t> m_message_id;
+        //std::uint16_t m_message_id;
+        std::vector<std::tuple<std::uint16_t, std::uint16_t, std::uint16_t, const std::string&, std::string>> m_ds_request_list;
+        std::unordered_map<std::int32_t, bool> m_client_list;
+        bool m_is_reg_ds;
+	//Webserver 
+        std::uint16_t m_web_server_fd;
+        std::uint16_t m_web_server_port;
+        struct sockaddr_in m_web_server;
+	//std::tuple<message_id, prefix, response>
+	std::tuple<std::uint16_t, std::string, std::string> m_ds_response;
+	bool m_is_tcp_server_down;
+};
+
+#endif /* __uniimage__hpp__ */
