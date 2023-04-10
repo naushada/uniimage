@@ -611,47 +611,64 @@ int main(std::int32_t argc, char *argv[]) {
     std::uint16_t port;
     std::uint16_t web_port;
     std::string wan_instance;
-    using v_type = std::variant<std::nullptr_t, std::string, std::uint32_t, bool>;
-    std::unordered_map<std::string, v_type> config = {
-        {"role", ""},
-        {"server-ip", ""},
-        {"server-port", 0},
-        {"web-port", 0},
+    using Value = std::variant<std::nullptr_t, std::string, std::uint32_t, bool, std::int32_t, std::uint16_t, std::int16_t, std::uint8_t, std::int8_t>;
+    std::unordered_map<std::string, Value> config = {
+        {"role",                   ""},
+        {"server-ip",              ""},
+        {"server-port",            0},
+        {"web-port",               0},
         {"wan-interface-instance", ""},
-        {"protocol-tcp", false},
-        {"protocol-udp", false},
-        {"protocol-unix", false}
+        {"protocol-tcp",           false},
+        {"protocol-udp",           false},
+        {"protocol-unix",          false}
     };
 
-    while ((c = getopt_long(argc, argv, "r:i:p:w:a:", options.data(), &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "r:i:p:w:tuda:", options.data(), &option_index)) != -1) {
         switch(c) {
 	    case 'r':
             {
-                role = optarg;
-		if(role.compare("client") && (role.compare("server"))) {
+                #if 0
+                if(config["role"].compare("client") && (role.compare("server"))) {
                     std::cout << "Invalid value for --role, possible value is client or server "<< std::endl;
-		    return(-1);
+                    return(-1);
                 }
+                #endif
+                config["role"] = optarg;
             }
 	    break;
 	    case 'i':
             {
-                IP = optarg;
+                config["server-ip"] = optarg;
             }
 	    break;
 	    case 'p':
             {
-                port = std::stoi(optarg);
+                config["server-port"] = std::stoi(optarg);
             }
 	    break;
 	    case 'w':
             {
-                web_port = std::stoi(optarg);
+                config["web-port"] = std::stoi(optarg);
             }
 	    break;
 	    case 'a':
             {
-                wan_instance = std::stoi(optarg);
+                config["wan-interface-instance"] = optarg;
+            }
+        break;
+        case 't':
+            {
+                config["protocol-tcp"] = true;
+            }
+        break;
+        case 'u':
+            {
+                config["protocol-unix"] = true;
+            }
+        break;
+        case 'd':
+            {
+                config["protocol-udp"] = true;
             }
 	    break;
 	    default:
@@ -670,6 +687,10 @@ int main(std::int32_t argc, char *argv[]) {
 	}		
     }
     if(argc > 3) {
+        for(auto& elm: config) {
+            std::cout << "key: " << elm.first << " value: " ;
+            std::visit([](auto arg){std::cout << arg << " ";}, elm.second);
+        }
         noor::Uniimage unimanage(role, IP, port, web_port);
 	if(!role.compare("client")) {
             unimanage.getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
