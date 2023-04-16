@@ -59,7 +59,7 @@ void noor::Http::parse_uri(const std::string& in)
   if(std::string::npos != offset) {
     /* Qstring */
     std::string first_line = in.substr(0, offset);
-    std::cout << "line: " << __LINE__ <<"The request string is " << first_line << std::endl;
+    std::cout << "line: " << __LINE__ <<" The request string is " << first_line << std::endl;
 
     offset = first_line.find_first_of(" ", 0);
     // HTTP Request line must start with method - GET/POST/PUT/DELETE/OPTIONS
@@ -74,10 +74,11 @@ void noor::Http::parse_uri(const std::string& in)
 
         //'?' is not present in the first_line, which means QS - Query String is not present
         //e.g. The request string is GET /webui/main.04e34705edfe295e.js HTTP/1.1
-        offset = first_line.find_first_of(" ", method().length() + 1);
+        offset = first_line.find_last_of(" ");
 
         if(std::string::npos != offset) {
-          auto resource_uri = first_line.substr(0, offset);
+          auto resource_uri = first_line.substr(method().length() + 1, offset - method().length());
+          std::cout << "line: " << __LINE__ << " resource_uri: " << resource_uri << " offset: " << offset << std::endl;
           uri(resource_uri);
           return;
         }
@@ -122,7 +123,7 @@ void noor::Http::parse_header(const std::string& in)
   /* getridof first request line 
    * GET/POST/PUT/DELETE <uri>?uriName[&param=value]* HTTP/1.1\r\n
    */
-  std::getline(input, line_str, '\r');
+  std::getline(input, line_str);
 
   auto offset = input.str().find_last_of("\r\n\r\n");
   if(std::string::npos != offset) {
@@ -133,8 +134,8 @@ void noor::Http::parse_header(const std::string& in)
     while(!ss.eof()) {
 
       line_str.clear();
-      std::getline(ss, line_str, '\r');
-      offset = line_str.find_first_of(": ", 0);
+      std::getline(ss, line_str);
+      offset = line_str.find_first_of(": ");
       auto key = line_str.substr(0, offset);
       auto value = line_str.substr(offset+2);
       //getting rid oftrailing \r\n
