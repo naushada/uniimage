@@ -77,8 +77,8 @@ void noor::Http::parse_uri(const std::string& in)
         offset = first_line.find_last_of(" ");
 
         if(std::string::npos != offset) {
-          auto resource_uri = first_line.substr(method().length() + 1, offset - method().length());
-          std::cout << "line: " << __LINE__ << " resource_uri: " << resource_uri << " offset: " << offset << std::endl;
+          auto resource_uri = first_line.substr(method().length() , offset - method().length());
+          std::cout << "line: " << __LINE__ << " resource_uri: " << resource_uri << " offset: " << offset << "resource_uri.length(): " << resource_uri.length() << std::endl;
           uri(resource_uri);
           return;
         }
@@ -141,7 +141,7 @@ void noor::Http::parse_header(const std::string& in)
       //getting rid oftrailing \r\n
       offset = value.find_first_of("\r\n");
       value = value.substr(0, offset);
-
+      std::cout <<"line: " << __LINE__ << " key: " << key << " value: " << value << std::endl;
       if(!key.empty() && !value.empty()) {
         add_element(key, value);
       }
@@ -152,7 +152,7 @@ void noor::Http::parse_header(const std::string& in)
 std::string noor::Http::get_header(const std::string& in)
 {
   std::string header("");
-  auto offset = in.find_last_of("\r\n\r\n");
+  auto offset = in.find_first_of("\r\n\r\n");
   if(std::string::npos != offset) {
     header = in.substr(0, offset);
   }
@@ -164,7 +164,9 @@ std::string noor::Http::get_header(const std::string& in)
 std::string noor::Http::get_body(const std::string& in)
 {
   auto header = get_header(in);
+  std::cout << "line: " << __LINE__ << " header.length() " << header.length() << std::endl;
   auto bdy = in.substr(header.length(), in.length() - header.length());
+  std::cout << "line: " << __LINE__ << " body length: " << bdy.length() << std::endl;
   return(bdy);
 }
 

@@ -344,15 +344,15 @@ std::string noor::Uniimage::web_rx(std::int32_t handle) {
     } else if(len > 0) {
         std::string ss(arr.data(), len);
         Http http(ss);
-        std::cout << "URI: " << http.uri() << std::endl;
-        std::cout << "Header " << http.header() << std::endl;
-        std::cout << "Body " << http.body() << std::endl;
+        std::cout << "line: " << __LINE__ << " URI: "   << http.uri()    << std::endl;
+        std::cout << "line: " << __LINE__ << " Header " << http.header() << std::endl;
+        std::cout << "line: " << __LINE__ << " Body "   << http.body()   << std::endl;
         std::uint32_t offset = 0;
         auto cl = http.value("Content-Length");
         size_t payload_len = 0;
 
         if(!cl.length()) {
-            std::cout << "Content-Length is not present" << std::endl;
+            std::cout << "line: " << __LINE__ << " Content-Length is not present" << std::endl;
             auto response = build_web_response(http);
             if(!response.length()) {
                 web_tx(handle, response);
@@ -679,7 +679,7 @@ std::int32_t noor::Uniimage::start_server() {
                     std::string IP(inet_ntoa(peer.sin_addr));
                     web_conn.insert(std::make_pair(newFd, std::make_tuple(newFd, IP, ntohs(peer.sin_port))));
                     auto ent = web_conn[newFd];
-                    std::cout << "new web connId: " << std::get<0>(ent) << " IP: " << std::get<1>(ent) << " PORT: " << std::get<2>(ent) << std::endl;
+                    std::cout << "line: "<< __LINE__ <<" new web connId: " << std::get<0>(ent) << " IP: " << std::get<1>(ent) << " PORT: " << std::get<2>(ent) << std::endl;
                     FD_SET(newFd, &fdList);
                 }
             }
@@ -715,7 +715,7 @@ std::int32_t noor::Uniimage::start_server() {
                     if(FD_ISSET(channel, &fdList)) {
                         //From Web Client 
                         std::string request("");
-                        std::cout << "Response from Web client received on channel "<< channel << std::endl;
+                        std::cout <<"line: " << __LINE__ << " Request from Web client received on channel "<< channel << std::endl;
                         auto req = web_rx(channel);
                         if(!req.length()) {
                             //client is closed now 
