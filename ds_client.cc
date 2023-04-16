@@ -451,6 +451,14 @@ std::int32_t noor::Uniimage::create_and_connect_tcp_socket(const std::string& IP
             std::cout << "line: " << __LINE__ << " Connection is in-progress: "<< std::endl;
             tcp_client(client_connection::Inprogress);
             return(0);
+
+        } else if(errno == ECONNREFUSED) {
+            //Server is not strated yet
+            std::cout << "line: " << __LINE__ << " Connect is refused errno: "<< std::strerror(errno) << std::endl;
+            close(tcp_client_fd());
+            tcp_client_fd(-1);
+            return(-1);
+
         } else {
             std::cout << "line: " << __LINE__ << " Connect is failed errno: "<< std::strerror(errno) << std::endl;
             close(tcp_client_fd());
@@ -476,7 +484,6 @@ std::int32_t noor::Uniimage::start_client() {
         to.tv_usec = 100;
         FD_ZERO(&fdList);
         FD_ZERO(&fdWrite);
-        FD_ZERO(&fdExcep);
 
         std::int32_t max_fd = uds_client_fd();
         FD_SET(uds_client_fd(), &fdList);
@@ -490,12 +497,12 @@ std::int32_t noor::Uniimage::start_client() {
             max_fd = (max_fd > tcp_client_fd()) ? max_fd : tcp_client_fd();
         } else if(tcp_client_fd() > 0 && tcp_client() == client_connection::Inprogress) {
             FD_SET(tcp_client_fd(), &fdWrite);
-            FD_SET(tcp_client_fd(), &fdExcep);
             max_fd = (max_fd > tcp_client_fd()) ? max_fd : tcp_client_fd();
         }
 
         conn_id = ::select((max_fd + 1), (fd_set *)&fdList, (fd_set *)&fdWrite, (fd_set *)&fdExcep, (struct timeval *)&to);
         if(conn_id > 0) {
+            // Received on Unix Socket
             if(uds_client_fd() > 0 && FD_ISSET(uds_client_fd(), &fdList)) {
                 //Received response from Data store
                 std::string request("");
@@ -506,9 +513,7 @@ std::int32_t noor::Uniimage::start_client() {
                     uds_client(client_connection::Disconnected);
                     std::cout << "Data store is down" << std::endl;
                     exit(0);
-                }
-                if((tcp_client() == client_connection::Connected && tcp_tx(tcp_client_fd(), req.m_response) < 0) || 
-                   (udp_client_fd() > 0 && udp_tx(udp_client_fd(), req.m_response) < 0)) {
+                } else {
                     std::cout << "line: " << __LINE__ << " Caching the response" << std::endl;
                     //Cache the response and will be sent later when TCP connection is established or upon timed out
                     auto it = std::find_if(m_ds_request_list.begin(), m_ds_request_list.end(), [&](auto &inst) {
@@ -521,6 +526,7 @@ std::int32_t noor::Uniimage::start_client() {
                     });
                 }
             }
+            //Received on UDP Socket
             if(udp_client_fd() > 0 && FD_ISSET(udp_client_fd(), &fdList)) {
                 //From UDP Server
                 std::string ret("");
@@ -530,6 +536,7 @@ std::int32_t noor::Uniimage::start_client() {
                     //Got Response from UDP client
                 }
             }
+            //The TCP client might be connected
             if(tcp_client_fd() > 0 && FD_ISSET(tcp_client_fd(), &fdWrite)) {
                 //TCP connection established successfully.
                 //Push changes if any now
@@ -537,101 +544,50 @@ std::int32_t noor::Uniimage::start_client() {
                 socklen_t optlen;
                 std::int32_t optval = -1;
                 optlen = sizeof (optval);
-                if(getsockopt(tcp_client_fd(), SOL_SOCKET, SO_ERROR, &optval, &optlen) < 0) {
-                    //Failed
-                    std::cout << std::endl << "Async connect failed " << std::endl;
-                } else if(getsockopt(tcp_client_fd(), SOL_SOCKET, SO_ERROR, &optval, &optlen) ||
-                          optval == 0 && client_connection() == client_connection::Inprogress) {
-                    //There's no error in the socket.
-                    std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " Connected successfully" << std::endl;
-                    FD_CLR(tcp_client_fd(), &fdWrite);
-                    FD_ZERO(&fdWrite);
-                    tcp_client(client_connection::Connected);
-                    std::cout <<"line: "<<__LINE__ << " Connection with TCP server is established " << std::endl;
-                    #if 0
-                    // Set to blocking mode again...
-                    std::int32_t arg = -1; 
-                    if( (arg = fcntl(tcp_client_fd(), F_GETFL, NULL)) < 0) { 
-                        fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno)); 
-                        exit(0); 
-                    }  
-                    arg &= (~O_NONBLOCK); 
-                    if( fcntl(tcp_client_fd(), F_SETFL, arg) < 0) { 
-                        fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno)); 
-                        exit(0); 
-                    }
-                    #endif
-                    if(!m_ds_request_list.empty()) {
-                        for(const auto& ent: m_ds_request_list) {
-                            std::string payload = std::get<4>(ent);
-                            //don't push to TCP server If response is awaited.
-                            if(payload.compare("default")) {
-                                std::uint32_t payload_len = payload.length();
-                                payload_len = htonl(payload_len);
-                                std::stringstream data("");
-                                data.write (reinterpret_cast <char *>(&payload_len), sizeof(payload_len));
-                                data << payload;
-                                tcp_tx(tcp_client_fd(), data.str());
-                            } else {
-                                std::cout << "line: " << __LINE__ << " not pushing to tcp server because response is default" << std::endl;
-                            }
-                        }
-                    }
-                } else {
-                    //Connect is failed.
-                    if(errno != EINPROGRESS /*&& errno == ETIMEDOUT*/) {
-                        std::cout << std::endl << "line: " << __LINE__ << " connection status on fdWrite error:" << std::strerror(errno) << " errno: " << errno << std::endl;
+                if(!getsockopt(tcp_client_fd(), SOL_SOCKET, SO_ERROR, &optval, &optlen)) {
+                    struct sockaddr_in peer;
+                    socklen_t sock_len = sizeof(peer);
+                    memset(&peer, 0, sizeof(peer));
+                    auto ret = getpeername(tcp_client_fd(), (struct sockaddr *)&peer, &sock_len);
+                    if(ret < 0 && errno == ENOTCONN) {
+                        std::cout << "line: " << __LINE__ << "Async connect failed " << std::endl;
                         close(tcp_client_fd());
                         tcp_client(client_connection::Disconnected);
                         tcp_client_fd(-1);
+                    } else {
+                        //TCP Client is connected 
+                        tcp_client(client_connection::Connected);
+                        std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " Connected successfully" << std::endl;
+                        FD_CLR(tcp_client_fd(), &fdWrite);
+                        FD_ZERO(&fdWrite);
+
+                        if(!m_ds_request_list.empty()) {
+                            for(const auto& ent: m_ds_request_list) {
+                                std::string payload = std::get<4>(ent);
+                                //don't push to TCP server If response is awaited.
+                                if(payload.compare("default")) {
+                                    std::uint32_t payload_len = payload.length();
+                                    payload_len = htonl(payload_len);
+                                    std::stringstream data("");
+                                    data.write (reinterpret_cast <char *>(&payload_len), sizeof(payload_len));
+                                    data << payload;
+                                    tcp_tx(tcp_client_fd(), data.str());
+                                }
+                            }
+                        }
                     }
                 }
             }
-            if(tcp_client_fd() > 0 && FD_ISSET(tcp_client_fd(), &fdExcep)) {
-                //Connect Failed
-                if(errno != EINPROGRESS && ETIMEDOUT == errno) {
-                    std::cout << "line: " << __LINE__ << " Exception on TCP Connect socket " << std::endl;
-                    close(tcp_client_fd());
-                    tcp_client(client_connection::Disconnected);
-                    tcp_client_fd(-1);
-                }
-            }
+
             if(tcp_client_fd() > 0 && FD_ISSET(tcp_client_fd(), &fdList)) {
                 //From TCP Server
-                std::int32_t optval = -1;
-                socklen_t optlen = sizeof(std::int32_t);
-                if(getsockopt(tcp_client_fd(), SOL_SOCKET, SO_ERROR, &optval, &optlen) < 0) {
-                    //Failed
-                    std::cout << std::endl << "Async connect failed " << std::endl;
-                } else if(optval == 0 && client_connection() == client_connection::Inprogress) {
-                    client_connection(client_connection::Disconnected);
-                }
-
                 std::string request("");
                 auto req = tcp_rx(tcp_client_fd());
                 std::cout << "line: "<< __LINE__ << " Response received from TCP Server length:" << req.length() << std::endl;
-                if(!req.length() && tcp_client() == client_connection::Inprogress) {
-                    tcp_client(client_connection::Connected);
-                    #if 0
-                    // Set to blocking mode again...
-                    std::int32_t arg = -1; 
-                    if( (arg = fcntl(tcp_client_fd(), F_GETFL, NULL)) < 0) { 
-                        fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno)); 
-                        exit(0); 
-                    }  
-                    arg &= (~O_NONBLOCK); 
-                    if( fcntl(tcp_client_fd(), F_SETFL, arg) < 0) { 
-                        fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno)); 
-                        exit(0); 
-                    }
-                    #endif 
-
-                } else if(!req.length() && client_connection() == client_connection::Connected) {
-                    std::cout << "line: " << __LINE__ << "TCP Server is went down hence closing the connection" << std::endl;
+                if(!req.length() && tcp_client() == client_connection::Connected) {
                     close(tcp_client_fd());
-                    FD_CLR(tcp_client_fd(), &fdList);
+                    tcp_client(client_connection::Disconnected);
                     tcp_client_fd(-1);
-                    client_connection(client_connection::Disconnected);
                 } else {
                     //Got from TCP server 
                     std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req.length() << std::endl;
@@ -653,12 +609,9 @@ std::int32_t noor::Uniimage::start_client() {
                             //Sent successfully
                             it = m_ds_request_list.erase(it);
                         }
-                    } else {
-                        std::cout << "line: " << __LINE__ << " not pushing to tcp server because response is default" << std::endl;
                     }
                 }
             }
-
         }
     } /* End of while loop */
 }
