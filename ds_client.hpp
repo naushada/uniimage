@@ -85,10 +85,20 @@ class noor::Uniimage {
 
         Uniimage(auto config) {
             m_config = std::move(config);
+            tcp_client_fd(-1);
+            uds_client_fd(-1);
+            tcp_client(client_connection::Disconnected);
+            udp_client_fd(-1);
+            
            do {
                if(!m_config["role"].compare("server")) {
                    //start tcp server 
-                   tcp_server(m_config["server-ip"], std::stoi(m_config["server-port"]));
+                   if(!m_config["protocol"].compare("tcp")) {
+                       tcp_server(m_config["server-ip"], std::stoi(m_config["server-port"]));
+                   }
+                   else if(!m_config["protocol"].compare("udp")) {
+                       udp_server(m_config["server-ip"], std::stoi(m_config["server-port"]));
+                   }
                    web_server(m_config["server-ip"], std::stoi(m_config["web-port"]));
                    break;
                }
@@ -103,16 +113,16 @@ class noor::Uniimage {
 
                channel = ::socket(PF_UNIX, SOCK_STREAM/*|SOCK_NONBLOCK*/, 0);
                if(channel < 0) {
-                   std::cout << "Creation of Unix socket Failed" << std::endl;
+                   std::cout << "line: "<<__LINE__ << "Creation of Unix socket Failed" << std::endl;
                    break;
                }
 
                uds_client_fd(channel);
-               uds_client(Disconnected);
+               uds_client(client_connection::Disconnected);
                /* set the reuse address flag so we don't get errors when restarting */
                auto flag = 1;
                if(::setsockopt(channel, SOL_SOCKET, SO_REUSEADDR, (std::int8_t *)&flag, sizeof(flag)) < 0 ) {
-                   std::cout << "Error: Could not set reuse address option on unix socket!" << std::endl;
+                   std::cout << "line: " << __LINE__ << "Error: Could not set reuse address option on unix socket!" << std::endl;
                    break;
                }
 
@@ -121,9 +131,15 @@ class noor::Uniimage {
                    std::cout << __FILE__ <<":"<<__LINE__ <<"Connect is failed errno: "<< std::strerror(errno) << std::endl;
                    break;
                }
-               uds_client(Connected);
-               //create the tcp socket and do async connect.
-               create_and_connect_tcp_socket(m_config["server-ip"], std::stoi(m_config["server-port"]));
+               uds_client(client_connection::Connected);
+               
+               if(!m_config["protocol"].compare("tcp")) {
+                    //TCP Client
+                    create_and_connect_tcp_socket(m_config["server-ip"], std::stoi(m_config["server-port"]));
+               }
+               else if(!m_config["protocol"].compare("udp")) {
+                    udp_client(m_config["server-ip"], std::stoi(m_config["server-port"]));
+               }
            } while(0);
         }
 
@@ -132,14 +148,16 @@ class noor::Uniimage {
             close(tcp_client_fd());
             m_ds_request_list.clear();
             m_client_list.clear();
+            tcp_client(client_connection::Disconnected);
+            uds_client(client_connection::Disconnected);
 
         }
 
-        emp_t rx(std::int32_t channel);
+        emp_t uds_rx(std::int32_t channel);
         std::string tcp_rx(std::int32_t channel);
         std::string web_rx(std::int32_t channel);
         
-        std::int32_t ds_tx(std::int32_t channel, const std::string& data);
+        std::int32_t uds_tx(std::int32_t channel, const std::string& data);
         std::int32_t tcp_tx(std::int32_t channel, const std::string& data);
         std::int32_t web_tx(std::int32_t channel, const std::string& data);
         std::string serialise(noor::Uniimage::EMP_COMMAND_TYPE type, noor::Uniimage::EMP_COMMAND_ID cmd, const std::string& data);
@@ -149,6 +167,26 @@ class noor::Uniimage {
         std::int32_t getSingleVariable(const std::string& prefix);
         std::string build_web_response(Http& http);
         std::int32_t create_and_connect_tcp_socket(const std::string& IP, std::uint16_t port);
+        std::int32_t udp_server(const std::string& IP, std::uint16_t port);
+        std::int32_t udp_client(const std::string& IP, std::uint16_t port);
+        std::int32_t udp_tx(std::int32_t channel, const std::string& data);
+        std::string udp_rx(std::int32_t channel);
+
+        std::int32_t udp_client_fd() const {
+            return(m_udp_client_fd);
+        }
+
+        void udp_client_fd(std::int32_t channel) {
+            m_udp_client_fd = channel;
+        }
+        
+        std::int32_t udp_server_fd() const {
+            return(m_udp_server_fd);
+        }
+
+        void udp_server_fd(std::int32_t channel) {
+            m_udp_server_fd = channel;
+        }
 
         void uds_client_fd(std::int32_t channel) {
             m_uds_client_fd = channel;
@@ -199,7 +237,7 @@ class noor::Uniimage {
         std::int32_t start_server();
         std::int32_t tcp_server(const std::string& IP, std::uint16_t PORT);
         std::int32_t web_server(const std::string& IP, std::uint16_t PORT);
-        void add_element(std::uint16_t type, std::uint16_t cmd, std::uint16_t msg_id, const std::string& prefiex, std::string rsp="default");
+        void add_element(std::uint16_t type, std::uint16_t cmd, std::uint16_t msg_id, std::string prefiex, std::string rsp="default");
 
     private:
         std::int32_t m_uds_client_fd;
@@ -208,7 +246,7 @@ class noor::Uniimage {
         std::int32_t m_tcp_client_fd;
         std::int32_t m_tcp_server_fd;
         std::uint16_t m_tcp_server_port;
-        struct sockaddr_in m_tcp_server;
+        struct sockaddr_in m_server_addr;
         std::atomic<std::uint16_t> m_message_id;
         //type, command, message_id, prefix and response for a tuple
         std::vector<std::tuple<std::uint16_t, std::uint16_t, std::uint16_t, std::string, std::string>> m_ds_request_list;
@@ -221,6 +259,9 @@ class noor::Uniimage {
         //std::tuple<message_id, prefix, response>
         std::tuple<std::uint16_t, std::string, std::string> m_ds_response;
         std::unordered_map<std::string, std::string> m_config;
+        std::int32_t m_udp_client_fd;
+        std::int32_t m_udp_server_fd;
+        struct sockaddr_in m_self_addr;
 };
 
 #endif /* __uniimage__hpp__ */
