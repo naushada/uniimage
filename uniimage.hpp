@@ -87,7 +87,6 @@ class noor::Uniimage {
             m_config = std::move(config);
             tcp_client_fd(-1);
             uds_client_fd(-1);
-            tcp_client(client_connection::Disconnected);
             udp_client_fd(-1);
             
            do {

@@ -509,7 +509,8 @@ std::int32_t noor::Uniimage::start_client() {
                 auto req = uds_rx(uds_client_fd());
                 if(!req.m_response.length()) {
                     close(uds_client_fd());
-                    uds_client(client_connection::Disconnected);
+                    m_client_list.erase(uds_client_fd());
+                    uds_client_fd(-1);
                     std::cout << "Data store is down" << std::endl;
                     exit(0);
                 } else {
@@ -549,9 +550,8 @@ std::int32_t noor::Uniimage::start_client() {
                     memset(&peer, 0, sizeof(peer));
                     auto ret = getpeername(tcp_client_fd(), (struct sockaddr *)&peer, &sock_len);
                     if(ret < 0 && errno == ENOTCONN) {
-                        std::cout << "line: " << __LINE__ << " Async connect failed " << std::endl;
                         close(tcp_client_fd());
-                        tcp_client(client_connection::Disconnected);
+                        m_client_list.erase(tcp_client_fd());
                         tcp_client_fd(-1);
                     } else {
                         //TCP Client is connected 
@@ -585,7 +585,7 @@ std::int32_t noor::Uniimage::start_client() {
                 std::cout << "line: "<< __LINE__ << " Response received from TCP Server length:" << req.length() << std::endl;
                 if(!req.length() && tcp_client() == client_connection::Connected) {
                     close(tcp_client_fd());
-                    tcp_client(client_connection::Disconnected);
+                    m_client_list.erase(tcp_client_fd());
                     tcp_client_fd(-1);
                 } else {
                     //Got from TCP server 
@@ -750,6 +750,7 @@ std::int32_t noor::Uniimage::udp_client(const std::string& IP, std::uint16_t por
     if(::setsockopt(channel, SOL_SOCKET, SO_REUSEADDR, (std::int8_t *)&flag, sizeof(flag)) < 0 ) {
         std::cout << "line: " << __LINE__ << " Error: Could not set reuse address option on INET socket!" << std::endl;
         close(udp_client_fd());
+        m_client_list.erase(udp_client_fd());
         udp_client_fd(-1);
         return(-1);
     }
@@ -786,6 +787,7 @@ std::int32_t noor::Uniimage::udp_server(const std::string& IP, std::uint16_t por
     if(ret < 0) {
         std::cout << "line: "<< __LINE__ << " bind to UDP protocol failed" << std::endl;
         close(udp_server_fd());
+        m_client_list.erase(udp_client_fd());
         udp_server_fd(-1);
         return(-1);
     }
