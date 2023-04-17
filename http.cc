@@ -125,10 +125,11 @@ void noor::Http::parse_header(const std::string& in)
    */
   std::getline(input, line_str);
 
-  auto offset = input.str().find_last_of("\r\n\r\n");
+  auto offset = input.str().find_last_of("\r\n\r\n", input.str().length(), 4);
   if(std::string::npos != offset) {
     //HTTP Header part
     auto header = input.str().substr(0, offset);
+    std::cout << "line: " << __LINE__ << " offset: " << offset << " header: " << header << std::endl; 
     std::stringstream ss(header);
 
     while(!ss.eof()) {
@@ -138,7 +139,7 @@ void noor::Http::parse_header(const std::string& in)
       offset = line_str.find_first_of(": ");
       auto key = line_str.substr(0, offset);
       auto value = line_str.substr(offset+2);
-      //getting rid oftrailing \r\n
+      //getting rid of trailing \r\n
       offset = value.find_first_of("\r\n");
       value = value.substr(0, offset);
       std::cout <<"line: " << __LINE__ << " key: " << key << " value: " << value << std::endl;
@@ -152,12 +153,14 @@ void noor::Http::parse_header(const std::string& in)
 std::string noor::Http::get_header(const std::string& in)
 {
   std::string header("");
-  auto offset = in.find_first_of("\r\n\r\n");
+  auto offset = in.find_last_of("\r\n\r\n", in.length(), 4);
   if(std::string::npos != offset) {
     header = in.substr(0, offset);
+    std::cout << "line: " << __LINE__ << " HTTP Header " << header << std::endl;
+    return(header);
   }
-  std::cout << "line: " << __LINE__ << " HTTP Header " << header << std::endl;
-  return(header);
+  
+  return(std::string());
 
 }
 
@@ -165,9 +168,14 @@ std::string noor::Http::get_body(const std::string& in)
 {
   auto header = get_header(in);
   std::cout << "line: " << __LINE__ << " header.length() " << header.length() << std::endl;
-  auto bdy = in.substr(header.length(), in.length() - header.length());
-  std::cout << "line: " << __LINE__ << " body length: " << bdy.length() << std::endl;
-  return(bdy);
+  auto cl = value("Content-Length");
+  if(!cl.length()) {
+    return(std::string());
+  }
+
+  auto body = in.substr(header.length(), in.length() - header.length());
+  std::cout << "line: " << __LINE__ << " body length: " << body.length() << std::endl;
+  return(body);
 }
 
 #endif /*__http_cc__*/

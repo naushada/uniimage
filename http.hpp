@@ -27,7 +27,7 @@ class noor::Http {
 
             if(m_header.length()) {
                 parse_uri(m_header);
-                parse_header(m_header);
+                parse_header(in);
             }
 
             m_body = get_body(in);

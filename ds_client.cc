@@ -354,7 +354,7 @@ std::string noor::Uniimage::web_rx(std::int32_t handle) {
         if(!cl.length()) {
             std::cout << "line: " << __LINE__ << " Content-Length is not present" << std::endl;
             auto response = build_web_response(http);
-            if(!response.length()) {
+            if(response.length()) {
                 web_tx(handle, response);
                 return(std::string("success"));
             }
