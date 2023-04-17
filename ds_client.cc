@@ -475,8 +475,7 @@ std::int32_t noor::Uniimage::start_client() {
     int conn_id   = -1;
     fd_set fdList;
     fd_set fdWrite;
-    fd_set fdExcep;
-
+    
     while (1) {
         /* A timeout for 100ms*/ 
         struct timeval to;
@@ -500,7 +499,7 @@ std::int32_t noor::Uniimage::start_client() {
             max_fd = (max_fd > tcp_client_fd()) ? max_fd : tcp_client_fd();
         }
 
-        conn_id = ::select((max_fd + 1), (fd_set *)&fdList, (fd_set *)&fdWrite, (fd_set *)&fdExcep, (struct timeval *)&to);
+        conn_id = ::select((max_fd + 1), (fd_set *)&fdList, (fd_set *)&fdWrite, (fd_set *)NULL, (struct timeval *)&to);
         if(conn_id > 0) {
             // Received on Unix Socket
             if(uds_client_fd() > 0 && FD_ISSET(uds_client_fd(), &fdList)) {
@@ -531,7 +530,7 @@ std::int32_t noor::Uniimage::start_client() {
                 //From UDP Server
                 std::string ret("");
                 //auto ret = udp_rx(udp_client_fd());
-                std::cout << "line: " << __LINE__ << "Xreating issue " << std::endl;
+                std::cout << "line: " << __LINE__ << " Xreating issue " << std::endl;
                 if(ret.length()) {
                     //Got Response from UDP client
                 }
@@ -550,7 +549,7 @@ std::int32_t noor::Uniimage::start_client() {
                     memset(&peer, 0, sizeof(peer));
                     auto ret = getpeername(tcp_client_fd(), (struct sockaddr *)&peer, &sock_len);
                     if(ret < 0 && errno == ENOTCONN) {
-                        std::cout << "line: " << __LINE__ << "Async connect failed " << std::endl;
+                        std::cout << "line: " << __LINE__ << " Async connect failed " << std::endl;
                         close(tcp_client_fd());
                         tcp_client(client_connection::Disconnected);
                         tcp_client_fd(-1);
@@ -596,11 +595,11 @@ std::int32_t noor::Uniimage::start_client() {
         } 
         else if(!conn_id) {
             //time out happens
-            if(tcp_client_fd() < 0 && tcp_client() == client_connection::Disconnected && !m_config["protocol"].compare("tcp)")) {
+            if(tcp_client_fd() < 0 && !m_config["protocol"].compare("tcp")) {
                 create_and_connect_tcp_socket(m_config["server-ip"], std::stoi(m_config["server-port"]));
             }
 
-            if(udp_client_fd() > 0  && !m_config["protocol"].compare("udp)")) {
+            if(udp_client_fd() > 0  && !m_config["protocol"].compare("udp")) {
                 for(auto it = m_ds_request_list.begin(); it != m_ds_request_list.end(); ++it) {
                     std::string payload = std::get<4>(*it);
                     //don't push to TCP server If response is awaited.
