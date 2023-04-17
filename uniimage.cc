@@ -1,7 +1,7 @@
 #ifndef __uniimage__cc__
 #define __uniimage__cc__
 
-#include "ds_client.hpp"
+#include "uniimage.hpp"
 #include "http.hpp"
 
 std::int32_t noor::Uniimage::web_server(const std::string& IP, std::uint16_t PORT) {
