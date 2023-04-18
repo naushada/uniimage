@@ -1338,7 +1338,7 @@ std::int32_t noor::NetInterface::udp_server(const std::string& IP, std::uint16_t
     /* Set up the address we're going to bind to. */
     bzero(&m_inet_server, sizeof(m_inet_server));
     m_inet_server.sin_family = AF_INET;
-    m_inet_server.sin_port = htons(port);
+    m_inet_server.sin_port = htons(PORT);
     m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
     memset(m_inet_server.sin_zero, 0, sizeof(m_inet_server.sin_zero));
     auto len = sizeof(m_inet_server);
@@ -1412,6 +1412,97 @@ std::int32_t noor::NetInterface::web_server(const std::string& IP, std::uint16_t
     return(0); 
 }
 
+
+std::int32_t noor::NetInterface::web_tx(const std::string& req) {
+    std::int32_t offset = 0;
+    std::int32_t req_len = req.length();
+    std::int32_t len = -1;
+
+    do {
+        len = send(handle(), req.data() + offset, req_len - offset, 0);
+        if(len < 0) {
+            offset = len;
+            break;
+        } 
+        offset += len;
+    } while(offset != req_len);
+
+    return(offset);
+}
+
+std::int32_t noor::NetInterface::udp_tx(const std::string& req) {
+    std::int32_t offset = 0;
+    std::int32_t payload_len = req.length();
+    std::int32_t len = -1;
+    auto total_len = htonl(payload_len);
+    std::stringstream data("");
+    data.write(reinterpret_cast <char *>(&total_len), sizeof(std::int32_t));
+    data << req;
+    payload_len = data.str().length();
+
+    do {
+        len = sendto(handle(), data.str().data() + offset, payload_len - offset, 0, (struct sockaddr *)&m_inet_server, sizeof(m_inet_server));
+        if(len < 0) {
+            offset = len;
+            break;
+        }
+        offset += len;
+    } while(offset != payload_len);
+
+    if(offset > 0 && offset == payload_len) {
+        std::cout <<"line: " << __LINE__ << " Request sent to UDP Server successfully length: "<< offset << std::endl;
+    }
+    return(offset);
+}
+
+std::int32_t noor::NetInterface::uds_tx(const std::string& req) {
+    std::int32_t offset = 0;
+    std::int32_t req_len = req.length();
+    std::int32_t len = -1;
+
+    do {
+        len = send(handle(), req.data() + offset, req_len - offset, 0);
+        if(len < 0) {
+            offset = len;
+            break;
+        } 
+        offset += len;
+    } while(offset != req_len);
+
+    if(offset == req_len) {
+        for(std::int32_t idx = 0; idx < 8; ++idx) {
+            printf("%X ", req.c_str()[idx]);
+        }
+        std::string ss(reinterpret_cast<const char *>(&req.c_str()[8]));
+        std::cout << "Query pushed to DS ==> " << ss << std::endl;
+    }
+    return(offset);
+}
+
+std::int32_t noor::NetInterface::tcp_tx(const std::string& req) {
+    std::int32_t offset = 0;
+    std::int32_t req_len = req.length();
+    std::int32_t len = -1;
+    auto payload_len = htonl(req_len);
+    std::stringstream data("");
+    data.write (reinterpret_cast <char *>(&payload_len), sizeof(payload_len));
+    data << req;
+    req_len = data.str().length();
+    do {
+        len = send(handle(), data.str().data() + offset, req_len - offset, 0);
+        if(len < 0) {
+            offset = len;
+            break;
+        }
+        offset += len;
+    } while(offset != req_len);
+
+    if(offset == req_len) {
+        std::cout << "Request sent to TCP Server successfully" << std::endl;
+    }
+    return(offset);
+}      
+
 std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<NetInterface>, socket_type>> intf_list) {
     int conns  = -1;
     fd_set fdList;
@@ -1462,6 +1553,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
         conns = ::select(FD_SETSIZE, (fd_set *)&fdList, (fd_set *)&fdWrite, (fd_set *)NULL, (struct timeval *)&to);
         
         if(conns > 0) {
+
             for(auto& elm: intf_list) {
                 auto channel = std::get<0>(elm)->handle();
                 auto& type = std::get<1>(elm);
@@ -1537,33 +1629,43 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 if(type == noor::NetInterface::socket_type::TCP_ASYNC && FD_ISSET(channel, &fdList)) {
                     //From TCP Server
                     std::string request("");
-                    auto req = tcp_rx(tcp_client_fd());
-                    std::cout << "line: "<< __LINE__ << " Response received from TCP Server length:" << req.length() << std::endl;
-                    if(!req.length() && tcp_client() == client_connection::Connected) {
-                        ::close(tcp_client_fd());
-                        m_client_list.erase(tcp_client_fd());
-                        tcp_client_fd(-1);
+                    auto req = std::get<0>(elm)->tcp_rx(request);
+                    std::cout << "line: "<< __LINE__ << " Response received from TCP Server length:" << req << std::endl;
+                    if(!req && std::get<0>(elm)->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
+                        ::close(channel);
+                        std::get<0>(elm)->connected_client().erase(channel);
+                        std::get<0>(elm)->handle(-1);
                     } else {
                         //Got from TCP server 
-                        std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req.length() << std::endl;
+                        std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req << std::endl;
                     }
                 }
             }
         } 
         else if(!conns) {
             //time out happens
-            if(tcp_client_fd() < 0 && !m_config["protocol"].compare("tcp")) {
-                create_and_connect_tcp_socket(m_config["server-ip"], std::stoi(m_config["server-port"]));
+            auto it = std::find_if(intf_list.begin(), intf_list.end(), [&](auto& ent) {
+                auto type = std::get<1>(ent);
+                return(type == noor::NetInterface::socket_type::TCP_ASYNC);
+            });
+
+            if(it != intf_list.end() && !m_config["protocol"].compare("tcp")) {
+                std::get<0>(*it)->tcp_client_async(m_config["server-ip"], std::stoi(m_config["server-port"]));
             }
 
-            if(udp_client_fd() > 0  && !m_config["protocol"].compare("udp")) {
-                for(auto it = m_ds_request_list.begin(); it != m_ds_request_list.end(); ++it) {
-                    std::string payload = std::get<4>(*it);
+            it = std::find_if(intf_list.begin(), intf_list.end(), [&](auto& ent) {
+                auto type = std::get<1>(ent);
+                return(type == noor::NetInterface::socket_type::UDP);
+            });
+
+            if(it != intf_list.end()  && !m_config["protocol"].compare("udp")) {
+                for(auto iter = std::get<0>(*it)->response_cache().begin(); iter != std::get<0>(*it)->response_cache().end(); ++iter) {
+                    std::string payload = std::get<4>(*iter);
                     //don't push to TCP server If response is awaited.
                     if(payload.compare("default")) {
-                        if(udp_tx(udp_client_fd(), payload) > 0) {
+                        if(std::get<0>(*iter).udp_tx(payload) > 0) {
                             //Sent successfully
-                            it = m_ds_request_list.erase(it);
+                            std::get<0>(*iter)->response_cache().erase(std::get<0>(*iter)->handle());
                         }
                     }
                 }

@@ -336,6 +336,13 @@ class noor::NetInterface {
         emp uds_rx();
         std::int32_t web_rx(std::string& data);
         std::int32_t udp_rx(std::string& data);
+        
+        std::int32_t web_tx(const std::string& data);
+        std::int32_t udp_tx(const std::string& data);
+        std::int32_t uds_tx(const std::string& data);
+        std::int32_t tcp_tx(const std::string& data);
+        
+
 
         virtual std::int32_t onReceive(std::string in) = 0;
         virtual std::int32_t onClose(std::string in) = 0;
@@ -417,6 +424,13 @@ class noor::NetInterface {
             return(m_un_server);
         }
         
+        auto& config() const {
+            return(m_config);
+        }
+        void config(auto cfg) {
+            m_config = std::move(cfg);
+        }
+
     private:
         std::string m_uds_socket_name;
         std::string m_ip;
@@ -435,6 +449,7 @@ class noor::NetInterface {
         std::unordered_map<std::int32_t, std::vector<std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>>> m_web_connections;
         std::unordered_map<std::int32_t, std::vector<std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>>> m_tcp_connections;
         std::unique_ptr<NetInterface> m_hook;
+        std::unordered_map<std::string, std::string> m_config;
 
 };
 
