@@ -333,7 +333,7 @@ class noor::NetInterface {
         std::int32_t start_client(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<NetInterface>, socket_type>>);
         std::int32_t start_server(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<NetInterface>, socket_type>>);
         std::int32_t tcp_rx(std::string& data);
-        emp uds_rx(std::string& data);
+        emp uds_rx();
         std::int32_t web_rx(std::string& data);
         std::int32_t udp_rx(std::string& data);
 

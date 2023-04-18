@@ -1099,7 +1099,7 @@ std::int32_t noor::NetInterface::uds_client(const std::string& PATH) {
     return(0);
 }
 
-noor::NetInterface::emp noor::NetInterface::uds_rx(std::string& data) {
+noor::NetInterface::emp noor::NetInterface::uds_rx() {
     std::uint16_t command;
     std::uint16_t message_id;
     std::uint32_t payload_size;
@@ -1430,6 +1430,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
             if(noor::NetInterface::socket_type::UNIX == std::get<1>(elm)) {
                 auto& inst = std::get<0>(elm);
                 FD_SET(inst->handle(), &fdList);
+
             } else if(noor::NetInterface::socket_type::TCP_ASYNC == std::get<1>(elm)) {
                 auto& inst = std::get<0>(elm);
                 if(inst->handle() > 0 && inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Connected) {
@@ -1437,120 +1438,119 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 } else if(inst->handle() > 0 && inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Inprogress) {
                     FD_SET(inst->handle(), &fdWrite);
                 }
+
             } else if(noor::NetInterface::socket_type::UDP == std::get<1>(elm)) {
                 auto& inst = std::get<0>(elm);
                 if(inst->handle() > 0 ) {
                     FD_SET(inst->handle(), &fdList);
                 }
+
             } else if(noor::NetInterface::socket_type::UDP_ASYNC == std::get<1>(elm)) {
                 auto& inst = std::get<0>(elm);
                 if(inst->handle() > 0 ) {
                     FD_SET(inst->handle(), &fdList);
                 }
+
             } else if(noor::NetInterface::socket_type::TCP == std::get<1>(elm)) {
                 auto& inst = std::get<0>(elm);
                 if(inst->handle() > 0 && inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Connected) {
                     FD_SET(inst->handle(), &fdList);
                 }
             }
-
         }
 
         conns = ::select(FD_SETSIZE, (fd_set *)&fdList, (fd_set *)&fdWrite, (fd_set *)NULL, (struct timeval *)&to);
+        
         if(conns > 0) {
-            // Received on Unix Socket
-            if(uds_client_fd() > 0 && FD_ISSET(uds_client_fd(), &fdList)) {
-                //Received response from Data store
-                std::string request("");
-                std::cout << "From DS line: " << __LINE__<<" Response received " << std::endl;
-                auto req = uds_rx(uds_client_fd());
-                if(!req.m_response.length()) {
-                    close(uds_client_fd());
-                    m_client_list.erase(uds_client_fd());
-                    uds_client_fd(-1);
-                    std::cout << "Data store is down" << std::endl;
-                    exit(0);
-                } else {
-                    std::cout << "line: " << __LINE__ << " Caching the response" << std::endl;
-                    //Cache the response and will be sent later when TCP connection is established or upon timed out
-                    auto it = std::find_if(m_ds_request_list.begin(), m_ds_request_list.end(), [&](auto &inst) {
-                        if(req.m_message_id == std::get<2>(inst)) {
-                            //Update the recieved response
-                            std::get<4>(inst) = req.m_response;
-                            return(true);
-                        }
-                            return(false);
-                    });
-                }
-            }
-            //Received on UDP Socket
-            if(udp_client_fd() > 0 && FD_ISSET(udp_client_fd(), &fdList)) {
-                //From UDP Server
-                std::string ret("");
-                //auto ret = udp_rx(udp_client_fd());
-                std::cout << "line: " << __LINE__ << " Xreating issue " << std::endl;
-                if(ret.length()) {
-                    //Got Response from UDP client
-                }
-            }
-            //The TCP client might be connected
-            if(tcp_client_fd() > 0 && FD_ISSET(tcp_client_fd(), &fdWrite)) {
-                //TCP connection established successfully.
-                //Push changes if any now
-                //When the connection establishment (for non-blocking socket) encounters an error, the descriptor becomes both readable and writable (p. 530 of TCPv2).
-                socklen_t optlen;
-                std::int32_t optval = -1;
-                optlen = sizeof (optval);
-                if(!getsockopt(tcp_client_fd(), SOL_SOCKET, SO_ERROR, &optval, &optlen)) {
-                    struct sockaddr_in peer;
-                    socklen_t sock_len = sizeof(peer);
-                    memset(&peer, 0, sizeof(peer));
-                    auto ret = getpeername(tcp_client_fd(), (struct sockaddr *)&peer, &sock_len);
-                    if(ret < 0 && errno == ENOTCONN) {
-                        close(tcp_client_fd());
-                        m_client_list.erase(tcp_client_fd());
-                        tcp_client_fd(-1);
+            for(auto& elm: intf_list) {
+                auto channel = std::get<0>(elm)->handle();
+                auto& type = std::get<1>(elm);
+                // Received on Unix Socket
+                if(type == noor::NetInterface::socket_type::UNIX && FD_ISSET(channel, &fdList)) {
+                    //Received response from Data store
+                    std::string request("");
+                    std::cout << "From DS line: " << __LINE__<<" Response received " << std::endl;
+                    auto req = std::get<0>(elm)->uds_rx();
+                    if(!req.m_response.length()) {
+                        ::close(channel);
+                        connected_client().erase(channel);
+                        std::get<0>(elm)->handle(-1);
+                        std::cout <<"line: " << __LINE__ << " Data store is down" << std::endl;
+                        exit(0);
                     } else {
-                        //TCP Client is connected 
-                        tcp_client(client_connection::Connected);
-                        std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " Connected successfully" << std::endl;
-                        FD_CLR(tcp_client_fd(), &fdWrite);
-                        FD_ZERO(&fdWrite);
+                        std::cout << "line: " << __LINE__ << " Caching the response" << std::endl;
+                        //Cache the response and will be sent later when TCP connection is established or upon timed out
+                        std::get<0>(elm)->update_response_to_cache(req.m_message_id, req.m_response);
+                    }
+                }
+                //Received on UDP Socket
+                if(type == noor::NetInterface::socket_type::UDP && FD_ISSET(channel, &fdList)) {
+                    //From UDP Server
+                    std::string ret("");
+                    //auto ret = udp_rx(udp_client_fd());
+                    std::cout << "line: " << __LINE__ << " Xreating issue " << std::endl;
+                    if(ret.length()) {
+                        //Got Response from UDP client
+                    }
+                }
+                //The TCP client might be connected
+                if(type == noor::NetInterface::socket_type::TCP_ASYNC && FD_ISSET(channel, &fdWrite)) {
+                    //TCP connection established successfully.
+                    //Push changes if any now
+                    //When the connection establishment (for non-blocking socket) encounters an error, the descriptor becomes both readable and writable (p. 530 of TCPv2).
+                    socklen_t optlen;
+                    std::int32_t optval = -1;
+                    optlen = sizeof (optval);
+                    if(!getsockopt(channel, SOL_SOCKET, SO_ERROR, &optval, &optlen)) {
+                        struct sockaddr_in peer;
+                        socklen_t sock_len = sizeof(peer);
+                        memset(&peer, 0, sizeof(peer));
+                        auto ret = getpeername(channel, (struct sockaddr *)&peer, &sock_len);
+                        if(ret < 0 && errno == ENOTCONN) {
+                            ::close(channel);
+                            std::get<0>(elm)->connected_client().erase(channel);
+                            std::get<0>(elm)->handle(-1);
+                        } else {
+                            //TCP Client is connected 
+                            std::get<0>(elm)->connected_client(noor::NetInterface::client_connection::Connected);
+                            std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " Connected successfully" << std::endl;
+                            FD_CLR(channel, &fdWrite);
+                            FD_ZERO(&fdWrite);
 
-                        if(!m_ds_request_list.empty()) {
-                            for(const auto& ent: m_ds_request_list) {
-                                std::string payload = std::get<4>(ent);
-                                //don't push to TCP server If response is awaited.
-                                if(payload.compare("default")) {
-                                    std::uint32_t payload_len = payload.length();
-                                    payload_len = htonl(payload_len);
-                                    std::stringstream data("");
-                                    data.write (reinterpret_cast <char *>(&payload_len), sizeof(payload_len));
-                                    data << payload;
-                                    tcp_tx(tcp_client_fd(), data.str());
+                            if(!std::get<0>(elm)->response_cache().empty()) {
+                                for(const auto& ent: std::get<0>(elm)->response_cache()) {
+                                    std::string payload = std::get<4>(ent);
+                                    //don't push to TCP server If response is awaited.
+                                    if(payload.compare("default")) {
+                                        std::uint32_t payload_len = payload.length();
+                                        payload_len = htonl(payload_len);
+                                        std::stringstream data("");
+                                        data.write (reinterpret_cast <char *>(&payload_len), sizeof(payload_len));
+                                        data << payload;
+                                        std::get<0>(elm)->tcp_tx(data.str());
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
-
-            if(tcp_client_fd() > 0 && FD_ISSET(tcp_client_fd(), &fdList)) {
-                //From TCP Server
-                std::string request("");
-                auto req = tcp_rx(tcp_client_fd());
-                std::cout << "line: "<< __LINE__ << " Response received from TCP Server length:" << req.length() << std::endl;
-                if(!req.length() && tcp_client() == client_connection::Connected) {
-                    close(tcp_client_fd());
-                    m_client_list.erase(tcp_client_fd());
-                    tcp_client_fd(-1);
-                } else {
-                    //Got from TCP server 
-                    std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req.length() << std::endl;
+                if(type == noor::NetInterface::socket_type::TCP_ASYNC && FD_ISSET(channel, &fdList)) {
+                    //From TCP Server
+                    std::string request("");
+                    auto req = tcp_rx(tcp_client_fd());
+                    std::cout << "line: "<< __LINE__ << " Response received from TCP Server length:" << req.length() << std::endl;
+                    if(!req.length() && tcp_client() == client_connection::Connected) {
+                        ::close(tcp_client_fd());
+                        m_client_list.erase(tcp_client_fd());
+                        tcp_client_fd(-1);
+                    } else {
+                        //Got from TCP server 
+                        std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req.length() << std::endl;
+                    }
                 }
             }
         } 
-        else if(!conn_id) {
+        else if(!conns) {
             //time out happens
             if(tcp_client_fd() < 0 && !m_config["protocol"].compare("tcp")) {
                 create_and_connect_tcp_socket(m_config["server-ip"], std::stoi(m_config["server-port"]));
