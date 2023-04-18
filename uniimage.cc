@@ -1413,7 +1413,7 @@ std::int32_t noor::NetInterface::web_server(const std::string& IP, std::uint16_t
 }
 
 std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<NetInterface>, socket_type>> intf_list) {
-    int conn_id   = -1;
+    int conns  = -1;
     fd_set fdList;
     fd_set fdWrite;
     
@@ -1455,9 +1455,9 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
             }
 
         }
-        
-        conn_id = ::select(FD_SETSIZE, (fd_set *)&fdList, (fd_set *)&fdWrite, (fd_set *)NULL, (struct timeval *)&to);
-        if(conn_id > 0) {
+
+        conns = ::select(FD_SETSIZE, (fd_set *)&fdList, (fd_set *)&fdWrite, (fd_set *)NULL, (struct timeval *)&to);
+        if(conns > 0) {
             // Received on Unix Socket
             if(uds_client_fd() > 0 && FD_ISSET(uds_client_fd(), &fdList)) {
                 //Received response from Data store
