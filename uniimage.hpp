@@ -38,6 +38,7 @@
 
 namespace noor {
     class Uniimage;
+    class NetInterface;
     struct response {
         std::uint16_t type;
         std::uint16_t command;
@@ -261,6 +262,180 @@ class noor::Uniimage {
         std::int32_t m_udp_client_fd;
         std::int32_t m_udp_server_fd;
         struct sockaddr_in m_self_addr;
+};
+
+class noor::NetInterface {
+    public:
+        //EMP (Embedded Micro Protocol) parser
+        enum EMP_COMMAND_TYPE : std::uint16_t {
+           Request = 0,
+           Command_OR_Notification = 1,
+           Response = 2,
+        };
+        enum EMP_COMMAND_ID : std::uint16_t {
+           RegisterGetVariable     = 104,          /**< Register to get notified immediately and when a path or sub path changes. */
+           RegisterVariable        = 105,          /**< Register to get notified when a path or sub path changes. */
+           UnregisterVariable      = 106,          /**< Unregister a previously registered notification. */
+           NotifyVariable          = 107,          /**< Notify a change in the monitored values. */
+           ExecVariable            = 108,          /**< Execute a node. */
+           RegisterExec            = 109,          /**< Register to get notified when a path is executed. */
+           NotifyExec              = 110,          /**< Notify that a path is executed. */
+           GetVariable             = 113,          /**< Recursively get values in a single request. */
+           SingleGetVariable       = 114,          /**< Get a single path value. */
+           SetVariable             = 115,          /**< Set one or more values. */
+           ListVariable            = 116,          /**< List direct children of a branch path. */
+           NotifyFd                = 200,          /**< Notify file descriptor passing. */
+        };
+
+        struct emp {
+            emp() : m_type(0), m_command(0), m_message_id(0), m_response_length(0), m_response("") {}
+            ~emp() {}
+            std::uint16_t m_type;
+            std::uint16_t m_command;
+            std::uint16_t m_message_id;
+            std::uint32_t m_response_length;
+            std::string m_response;
+        };
+
+        enum client_connection: std::uint16_t {
+            Disconnected = 0,
+            Inprogress,
+            Connected
+        };
+
+        enum cache_element: std::uint32_t {
+            CMD_TYPE = 0,
+            CMD = 1,
+            MESSAGE_ID = 2,
+            PREFIX = 3,
+            RESPONSE = 4
+        };
+
+        enum socket_type: std::uint32_t {
+            UNIX = 0,
+            TCP = 1,
+            TCP_ASYNC = 2,
+            UDP = 3,
+            UDP_ASYNC = 4
+            
+        };
+
+        NetInterface(std::unique_ptr<NetInterface> hook);
+        ~NetInterface();
+        void close();
+        std::int32_t tcp_client(const std::string& IP, std::uint16_t PORT, bool isAsync=true);
+        std::int32_t tcp_client_async(const std::string& IP, std::uint16_t PORT);
+        std::int32_t udp_client(const std::string& IP, std::uint16_t PORT);
+        std::int32_t uds_client(const std::string& PATH="/var/run/treemgr/treemgr.sock");
+        std::int32_t tcp_server(const std::string& IP, std::uint16_t PORT);
+        std::int32_t udp_server(const std::string& IP, std::uint16_t PORT);
+        std::int32_t web_server(const std::string& IP, std::uint16_t PORT);
+        std::int32_t start_client(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<NetInterface>, socket_type>>);
+        std::int32_t start_server(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<NetInterface>, socket_type>>);
+        std::int32_t tcp_rx(std::string& data);
+        emp uds_rx(std::string& data);
+        std::int32_t web_rx(std::string& data);
+        std::int32_t udp_rx(std::string& data);
+
+        virtual std::int32_t onReceive(std::string in) = 0;
+        virtual std::int32_t onClose(std::string in) = 0;
+
+
+        void ip(std::string IP) {
+            m_ip = IP;
+        }
+        std::string ip() const {
+            return(m_ip);
+        }
+        void port(std::uint16_t _p) {
+            m_port = _p;
+        }
+        std::uint16_t port() const {
+          return(m_port);
+        }
+        std::int32_t handle() const {
+            return(m_handle);
+        }
+
+        void handle(std::int32_t fd) {
+            m_handle = fd;
+        }
+
+        std::string uds_socket_name() const {
+            return(m_uds_socket_name);
+        }
+
+        void uds_socket_name(std::string uds_name) {
+            m_uds_socket_name = uds_name;
+        }
+
+        auto& response_cache() {
+            return(m_response_cache);
+        }
+        void add_element_to_cache(auto elm) {
+            m_response_cache.push_back(elm);
+        }
+
+        void update_response_to_cache(std::int32_t id, std::string rsp) {
+            std::find_if(response_cache().begin(), response_cache().end(), [&](auto& inst) {
+                if(std::get<cache_element::MESSAGE_ID>(inst) == id) {
+                    std::get<cache_element::RESPONSE>(inst) = rsp;
+                    return(true);
+                }
+                return(false);
+            });
+        }
+        void connected_client(client_connection st) {
+            m_connected_clients.insert(std::make_pair(handle(), st));
+        }
+
+        auto& connected_client() {
+            return(m_connected_clients);
+        }
+
+        auto connected_client(std::int32_t channel) {
+            return(m_connected_clients[channel]);
+        }
+
+        auto& web_connections() {
+            return(m_web_connections);
+        }
+
+        auto& tcp_connections() {
+            return(m_tcp_connections);
+        }
+
+        auto& inet_server() {
+            return(m_inet_server);
+        }
+
+        auto& inet_peer() {
+            return(m_inet_peer);
+        }
+
+        auto& un_server() {
+            return(m_un_server);
+        }
+        
+    private:
+        std::string m_uds_socket_name;
+        std::string m_ip;
+        std::uint16_t m_port;
+        //file descriptor
+        std::int32_t m_handle;
+        //INET socket address
+        struct sockaddr_in m_inet_server;
+        struct sockaddr_in m_inet_peer;
+        // UNIX socket address 
+        struct sockaddr_un m_un_server;
+        //type, command, message_id, prefix and response for a tuple
+        std::vector<std::tuple<std::uint16_t, std::uint16_t, std::uint16_t, std::string, std::string>> m_response_cache;
+        std::unordered_map<std::int32_t, client_connection> m_connected_clients;
+        //key = fd, Value = <fd, IP, PORT, RxBytes, TxBytes, timestamp>
+        std::unordered_map<std::int32_t, std::vector<std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>>> m_web_connections;
+        std::unordered_map<std::int32_t, std::vector<std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>>> m_tcp_connections;
+        std::unique_ptr<NetInterface> m_hook;
+
 };
 
 #endif /* __uniimage__hpp__ */

@@ -967,5 +967,608 @@ int main(std::int32_t argc, char *argv[]) {
     //inst.start();
 }
 
+std::int32_t noor::NetInterface::tcp_client_async(const std::string& IP, std::uint16_t PORT) {
+    return(tcp_client(IP, PORT, true));
+}
 
+std::int32_t noor::NetInterface::tcp_client(const std::string& IP, std::uint16_t PORT, bool isAsync) {
+    /* Set up the address we're going to bind to. */
+    bzero(&m_inet_server, sizeof(m_inet_server));
+    m_inet_server.sin_family = AF_INET;
+    m_inet_server.sin_port = htons(PORT);
+    m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+    memset(m_inet_server.sin_zero, 0, sizeof(m_inet_server.sin_zero));
+    auto len = sizeof(m_inet_server);
+    std::int32_t channel = -1;
+
+    if(isAsync) {
+        channel = ::socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, 0);
+        if(channel < 0) {
+            std::cout << "line: " << __LINE__ <<" Creation of INET socket Failed" << std::endl;
+            return(-1);
+        }
+    } else {
+        channel = ::socket(AF_INET, SOCK_STREAM, 0);
+        if(channel < 0) {
+            std::cout << "line: " << __LINE__ <<" Creation of INET socket Failed" << std::endl;
+            return(-1);
+        }
+    }
+
+    handle(channel);
+    connected_client(noor::NetInterface::client_connection::Disconnected);
+
+    /* set the reuse address flag so we don't get errors when restarting */
+    auto flag = 1;
+    if(::setsockopt(channel, SOL_SOCKET, SO_REUSEADDR, (std::int8_t *)&flag, sizeof(flag)) < 0 ) {
+        std::cout << "line: " << __LINE__ << " Error: Could not set reuse address option on INET socket!" << std::endl;
+        ::close(handle());
+        connected_client().erase(handle());
+        handle(-1);
+        return(-1);
+    }
+    
+    auto rc = ::connect(channel, (struct sockaddr *)&inet_server(), len);
+    if(rc == -1) {
+        if(errno == EINPROGRESS) {    
+            std::cout << "line: " << __LINE__ << " Connection is in-progress: "<< std::endl;
+            connected_client(noor::NetInterface::client_connection::Inprogress);
+            return(0);
+
+        } else if(errno == ECONNREFUSED) {
+            //Server is not strated yet
+            std::cout << "line: " << __LINE__ << " Connect is refused errno: "<< std::strerror(errno) << std::endl;
+            ::close(handle());
+            connected_client().erase(handle());
+            handle(-1);
+            return(-1);
+
+        } else {
+            std::cout << "line: " << __LINE__ << " Connect is failed errno: "<< std::strerror(errno) << std::endl;
+            ::close(handle());
+            connected_client().erase(handle());
+            handle(-1);
+            return(-1);
+        }
+    } else {
+        connected_client(noor::NetInterface::client_connection::Connected);
+    }
+
+    return(0);
+}
+
+std::int32_t noor::NetInterface::udp_client(const std::string& IP, std::uint16_t PORT) {
+    // UDP Client .... 
+    bzero(&m_inet_server, sizeof(m_inet_server));
+    m_inet_server.sin_family = AF_INET;
+    m_inet_server.sin_port = htons(PORT);
+    m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+    memset(m_inet_server.sin_zero, 0, sizeof(m_inet_server.sin_zero));
+
+    std::int32_t channel = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if(channel < 0) {
+        std::cout << "line: " << __LINE__ <<" Creation of INET socket Failed" << std::endl;
+        return(-1);
+    }
+    handle(channel);
+    
+    /* set the reuse address flag so we don't get errors when restarting */
+    auto flag = 1;
+    if(::setsockopt(channel, SOL_SOCKET, SO_REUSEADDR, (std::int8_t *)&flag, sizeof(flag)) < 0 ) {
+        std::cout << "line: " << __LINE__ << " Error: Could not set reuse address option on INET socket!" << std::endl;
+        ::close(handle());
+        handle(-1);
+        return(-1);
+    }
+
+    return(0);
+}
+
+std::int32_t noor::NetInterface::uds_client(const std::string& PATH) {
+    std::int32_t channel = -1;
+    /* Set up the address we're going to bind to. */
+    bzero(&m_un_server, sizeof(m_un_server));
+    m_un_server.sun_family = PF_UNIX;
+    strncpy(m_un_server.sun_path, PATH.c_str(), sizeof(m_un_server.sun_path) -1);
+    std::size_t len = sizeof(struct sockaddr_un);
+
+    channel = ::socket(PF_UNIX, SOCK_STREAM/*|SOCK_NONBLOCK*/, 0);
+    if(channel < 0) {
+        std::cout << "line: "<<__LINE__ << "Creation of Unix socket Failed" << std::endl;
+        return(-1);
+    }
+
+    handle(channel);
+    /* set the reuse address flag so we don't get errors when restarting */
+    auto flag = 1;
+    if(::setsockopt(channel, SOL_SOCKET, SO_REUSEADDR, (std::int8_t *)&flag, sizeof(flag)) < 0 ) {
+        std::cout << "line: " << __LINE__ << "Error: Could not set reuse address option on unix socket!" << std::endl;
+        ::close(handle());
+        handle(-1);
+        return(-1);
+    }
+
+    auto rc = ::connect(channel, reinterpret_cast< struct sockaddr *>(&un_server()), len);
+    if(rc == -1) {
+        std::cout << __FILE__ <<":"<<__LINE__ <<"Connect is failed errno: "<< std::strerror(errno) << std::endl;
+        ::close(handle());
+        return(-1);
+    }
+
+    connected_client(noor::NetInterface::client_connection::Connected);
+    return(0);
+}
+
+noor::NetInterface::emp noor::NetInterface::uds_rx(std::string& data) {
+    std::uint16_t command;
+    std::uint16_t message_id;
+    std::uint32_t payload_size;
+    std::uint16_t type;
+    std::string response;
+    std::array<char, 16> arr; 
+    std::uint8_t EMP_HDR_SIZE = 8;
+    arr.fill(0);
+
+    auto len = recv(handle(), arr.data(), EMP_HDR_SIZE, 0);
+    if(len == EMP_HDR_SIZE) {
+        //parse emp header
+        std::istringstream istrstr;
+        istrstr.rdbuf()->pubsetbuf(arr.data(), len);
+        istrstr.read(reinterpret_cast<char *>(&command), sizeof(command));
+        command = ntohs(command);
+        type = (command >> 14) & 0x3;
+        command &= 0xFFF;
+        istrstr.read(reinterpret_cast<char *>(&message_id), sizeof(message_id));
+        istrstr.read(reinterpret_cast<char *>(&payload_size), sizeof(payload_size));
+        message_id = ntohs(message_id);
+        payload_size = ntohl(payload_size);
+
+        std::cout <<std::endl << "type: " << type << " command: " << command << " message_id: " << message_id << " payload_size: " << payload_size << std::endl;
+        std::uint32_t offset = 0;
+        std::unique_ptr<char[]> payload = std::make_unique<char[]>(payload_size);
+
+        do {
+            len = recv(handle(), (void *)(payload.get() + offset), (size_t)(payload_size - offset), 0);
+            if(len < 0) {
+                break;
+            }
+            offset += len;
+        } while(offset != payload_size);
+
+        if(offset == payload_size) {
+            std::string ss((char *)payload.get(), payload_size);
+            std::cout << "Payload: " << ss << std::endl;
+            emp res;
+            res.m_type = type;
+            res.m_command = command;
+            res.m_message_id = message_id;
+            res.m_response_length = payload_size;
+            res.m_response = ss;
+            return(res);
+        }
+    }
+    return(emp {});
+}
+
+std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
+    std::array<char, 8> arr;
+    arr.fill(0);
+    std::int32_t len = -1;
+    //read 4 bytes - the payload length
+    len = recv(handle(), arr.data(), sizeof(std::int32_t), 0);
+    if(!len) {
+        std::cout << "line: " << __LINE__ << " closed" << std::endl;
+        return(std::string().length());
+    } else if(len > 0) {
+        std::uint32_t payload_len; 
+        std::istringstream istrstr;
+        istrstr.rdbuf()->pubsetbuf(arr.data(), len);
+        istrstr.read(reinterpret_cast<char *>(&payload_len), sizeof(payload_len));
+        std::uint32_t offset = 0;
+        payload_len = ntohl(payload_len);
+        std::cout << "line: " << __LINE__ << " tcp payload length: " << payload_len << std::endl;
+
+        std::unique_ptr<char[]> payload = std::make_unique<char[]>(payload_len);
+        do {
+            len = recv(handle(), (void *)(payload.get() + offset), (size_t)(payload_len - offset), 0);
+            if(len < 0) {
+                offset = len;
+                break;
+            }
+            offset += len;
+        } while(offset != payload_len);
+                
+        if(offset == payload_len) {
+            std::string ss((char *)payload.get(), payload_len);
+            std::cout <<"line: "<< __LINE__ << " From TCP Client Received: " << ss << std::endl;
+            data = ss;
+            return(payload_len);
+        }
+    }
+
+    return(std::string().length());
+}
+
+std::int32_t noor::NetInterface::web_rx(std::string& data) {
+    std::array<char, 2048> arr;
+    arr.fill(0);
+    std::int32_t len = -1;
+    len = recv(handle(), arr.data(), arr.size(), 0);
+    if(!len) {
+        std::cout << "function: "<<__FUNCTION__ << " line: " << __LINE__ << " closed" << std::endl;
+    } else if(len > 0) {
+        std::string ss(arr.data(), len);
+        Http http(ss);
+        std::cout << "line: " << __LINE__ << " URI: "   << http.uri()    << std::endl;
+        std::cout << "line: " << __LINE__ << " Header " << http.header() << std::endl;
+        std::cout << "line: " << __LINE__ << " Body "   << http.body()   << std::endl;
+        std::uint32_t offset = 0;
+        auto cl = http.value("Content-Length");
+        size_t payload_len = 0;
+
+        if(!cl.length()) {
+            std::cout << "line: " << __LINE__ << " Content-Length is not present" << std::endl;
+            data = ss;
+            return(data.length());
+
+        } else {
+            std::cout << "function: "<< __FUNCTION__ << " line: " << __LINE__ <<" value of Content-Length " << cl << std::endl;
+            payload_len = std::stoi(cl);
+            if(len == (payload_len + http.header().length())) {
+                //We have received the full HTTP packet
+                data = ss;
+                return(data.length());
+
+            } else {
+                //compute the effective length
+                payload_len = (std::stoi(cl) + http.header().length() - len);
+                std::unique_ptr<char[]> payload = std::make_unique<char[]>(payload_len);
+                std::int32_t tmp_len = 0;
+                do {
+                    tmp_len = recv(handle(), (void *)(payload.get() + offset), (size_t)(payload_len - offset), 0);
+                    if(tmp_len < 0) {
+                        offset = len;
+                        break;
+                    }
+                    offset += tmp_len;
+                    
+                } while(offset != payload_len);
+
+                if(offset == payload_len) {
+                    std::string header(arr.data(), len);
+                    std::string ss((char *)payload.get(), payload_len);
+                    std::string request = header + ss;
+                    std::cout << "function: "<<__FUNCTION__ <<" line: " <<__LINE__ << " From Web Client Received: " << request << std::endl;
+                    data = ss;
+                    return(data.length());
+                }
+            }
+        }
+    }
+    return(std::string().length());  
+}
+
+std::int32_t noor::NetInterface::udp_rx(std::string& data) {
+    std::array<char, 8> arr;
+    arr.fill(0);
+    std::int32_t len = -1;
+    struct sockaddr_in peer;
+    socklen_t peer_addr_len = sizeof(peer);
+
+    len = recvfrom(handle(), arr.data(), sizeof(std::int32_t), MSG_PEEK, (struct sockaddr *)&peer, &peer_addr_len);
+    if(!len) {
+        std::cout << "line: " << __LINE__ << " closed" << std::endl;
+        return(std::string().length());
+
+    } else if(len > 0) {
+        std::int32_t payload_len = 0; 
+        std::istringstream istrstr;
+        istrstr.rdbuf()->pubsetbuf(arr.data(), len);
+        std::cout << "\nline: " << __LINE__ << " to be received bytes: " << len <<std::endl;
+        istrstr.read(reinterpret_cast<char *>(&payload_len), sizeof(payload_len));
+        std::uint32_t offset = 0;
+        payload_len = ntohl(payload_len) + 4; //+4 for 4bytes of length prepended to payload
+        std::cout << "line: " << __LINE__ << " udp payload length: " << payload_len << std::endl;
+
+        std::unique_ptr<char[]> payload = std::make_unique<char[]>(payload_len);
+
+        do {
+            len = recvfrom(handle(), (void *)(payload.get() + offset), (size_t)(payload_len - offset), MSG_WAITALL, (struct sockaddr *)&peer, &peer_addr_len);
+            if(len < 0) {
+                offset = len;
+                break;
+            }
+            offset += len;
+        } while(offset != payload_len);
+                
+        if(offset> 0 && offset == payload_len) {
+            std::string ss((char *)payload.get() + 4, payload_len-4);
+            //std::cout << "line: "<< __LINE__ << " From UDP Client Received: " << ss << std::endl;
+            data = ss;
+            return(ss.length());
+        }
+    }
+    return(std::string().length());
+}
+
+std::int32_t noor::NetInterface::tcp_server(const std::string& IP, std::uint16_t PORT) {
+   /* Set up the address we're going to bind to. */
+    bzero(&m_inet_server, sizeof(m_inet_server));
+    m_inet_server.sin_family = AF_INET;
+    m_inet_server.sin_port = htons(PORT);
+    m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+    memset(m_inet_server.sin_zero, 0, sizeof(m_inet_server.sin_zero));
+    auto len = sizeof(m_inet_server);
+
+    std::int32_t channel = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if(channel < 0) {
+        std::cout << "line: " << __LINE__ << " Creation of INET socket Failed" << std::endl;
+        return(-1);
+    }
+
+    handle(channel);
+    /* set the reuse address flag so we don't get errors when restarting */
+    auto flag = 1;
+    if(::setsockopt(channel, SOL_SOCKET, SO_REUSEADDR, (std::int8_t *)&flag, sizeof(flag)) < 0 ) {
+        std::cout << "line: " << __LINE__ << "Error: Could not set reuse address option on INET socket!" << std::endl;
+        ::close(handle());
+        handle(-1);
+        return(-1);
+    }
+    auto ret = ::bind(channel, (struct sockaddr *)&m_inet_server, sizeof(m_inet_server));
+    if(ret < 0) {
+        std::cout <<"line: " << __LINE__ << " bind to IP: " << IP << " PORT: " << PORT << " Failed" <<std::endl;
+        ::close(handle());
+        handle(-1);
+	    return(-1);
+    }
+
+    if(listen(channel, 10) < 0) {
+        std::cout << "line: " << __LINE__ << " listen to channel: " << channel << " Failed" <<std::endl;
+        ::close(handle());
+        handle(-1);
+	    return(-1);
+    }
+
+    return(0); 
+}
+
+std::int32_t noor::NetInterface::udp_server(const std::string& IP, std::uint16_t PORT) {
+    // UDP Server .... 
+    /* Set up the address we're going to bind to. */
+    bzero(&m_inet_server, sizeof(m_inet_server));
+    m_inet_server.sin_family = AF_INET;
+    m_inet_server.sin_port = htons(port);
+    m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+    memset(m_inet_server.sin_zero, 0, sizeof(m_inet_server.sin_zero));
+    auto len = sizeof(m_inet_server);
+
+    std::int32_t channel = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if(channel < 0) {
+        std::cout << "line: " << __LINE__ <<" Creation of INET socket Failed" << std::endl;
+        return(-1);
+    }
+
+    handle(channel);
+    
+    /* set the reuse address flag so we don't get errors when restarting */
+    auto flag = 1;
+    if(::setsockopt(channel, SOL_SOCKET, SO_REUSEADDR, (std::int8_t *)&flag, sizeof(flag)) < 0 ) {
+        std::cout << "line: " << __LINE__ << " Error: Could not set reuse address option on INET socket!" << std::endl;
+        ::close(handle());
+        handle(-1);
+        return(-1);
+    }
+
+    auto ret = ::bind(channel, (struct sockaddr *)&inet_server(), len);
+    if(ret < 0) {
+        std::cout << "line: "<< __LINE__ << " bind to UDP protocol failed" << std::endl;
+        ::close(handle());
+        handle(-1);
+        return(-1);
+    }
+    return(0);
+}
+
+std::int32_t noor::NetInterface::web_server(const std::string& IP, std::uint16_t PORT) {
+    /* Set up the address we're going to bind to. */
+    bzero(&m_inet_server, sizeof(m_inet_server));
+    m_inet_server.sin_family = AF_INET;
+    m_inet_server.sin_port = htons(PORT);
+    m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+    memset(m_inet_server.sin_zero, 0, sizeof(m_inet_server.sin_zero));
+    auto len = sizeof(m_inet_server);
+
+    std::int32_t channel = ::socket(AF_INET, SOCK_STREAM, 0);
+    if(channel < 0) {
+        std::cout << "Creation of INET socket Failed" << std::endl;
+        return(-1);
+    }
+
+    handle(channel);
+    /* set the reuse address flag so we don't get errors when restarting */
+    auto flag = 1;
+    if(::setsockopt(channel, SOL_SOCKET, SO_REUSEADDR, (std::int8_t *)&flag, sizeof(flag)) < 0 ) {
+        std::cout << "Error: Could not set reuse address option on INET socket!" << std::endl;
+        ::close(handle());
+        handle(-1);
+        return(-1);
+    }
+    auto ret = ::bind(channel, (struct sockaddr *)&inet_server(), len);
+    if(ret < 0) {
+        std::cout << "line: "<< __LINE__ << " bind to IP: " << IP << " PORT: " << PORT << " Failed" <<std::endl;
+        ::close(handle());
+        handle(-1);
+	    return(-1);
+    }
+
+    if(listen(channel, 10) < 0) {
+        std::cout << "line: " << __LINE__ << " listen to channel: " << channel << " Failed" <<std::endl;
+        ::close(handle());
+        handle(-1);
+	    return(-1);
+    }
+
+    return(0); 
+}
+
+std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<NetInterface>, socket_type>> intf_list) {
+    int conn_id   = -1;
+    fd_set fdList;
+    fd_set fdWrite;
+    
+    while (1) {
+
+        struct timeval to;
+        to.tv_sec = timeout_in_ms / 1000;
+        to.tv_usec = timeout_in_ms % 1000;
+
+        FD_ZERO(&fdList);
+        FD_ZERO(&fdWrite);
+        
+        for(auto& elm: intf_list) {
+            if(noor::NetInterface::socket_type::UNIX == std::get<1>(elm)) {
+                auto& inst = std::get<0>(elm);
+                FD_SET(inst->handle(), &fdList);
+            } else if(noor::NetInterface::socket_type::TCP_ASYNC == std::get<1>(elm)) {
+                auto& inst = std::get<0>(elm);
+                if(inst->handle() > 0 && inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Connected) {
+                    FD_SET(inst->handle(), &fdList);
+                } else if(inst->handle() > 0 && inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Inprogress) {
+                    FD_SET(inst->handle(), &fdWrite);
+                }
+            } else if(noor::NetInterface::socket_type::UDP == std::get<1>(elm)) {
+                auto& inst = std::get<0>(elm);
+                if(inst->handle() > 0 ) {
+                    FD_SET(inst->handle(), &fdList);
+                }
+            } else if(noor::NetInterface::socket_type::UDP_ASYNC == std::get<1>(elm)) {
+                auto& inst = std::get<0>(elm);
+                if(inst->handle() > 0 ) {
+                    FD_SET(inst->handle(), &fdList);
+                }
+            } else if(noor::NetInterface::socket_type::TCP == std::get<1>(elm)) {
+                auto& inst = std::get<0>(elm);
+                if(inst->handle() > 0 && inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Connected) {
+                    FD_SET(inst->handle(), &fdList);
+                }
+            }
+
+        }
+        
+        conn_id = ::select(FD_SETSIZE, (fd_set *)&fdList, (fd_set *)&fdWrite, (fd_set *)NULL, (struct timeval *)&to);
+        if(conn_id > 0) {
+            // Received on Unix Socket
+            if(uds_client_fd() > 0 && FD_ISSET(uds_client_fd(), &fdList)) {
+                //Received response from Data store
+                std::string request("");
+                std::cout << "From DS line: " << __LINE__<<" Response received " << std::endl;
+                auto req = uds_rx(uds_client_fd());
+                if(!req.m_response.length()) {
+                    close(uds_client_fd());
+                    m_client_list.erase(uds_client_fd());
+                    uds_client_fd(-1);
+                    std::cout << "Data store is down" << std::endl;
+                    exit(0);
+                } else {
+                    std::cout << "line: " << __LINE__ << " Caching the response" << std::endl;
+                    //Cache the response and will be sent later when TCP connection is established or upon timed out
+                    auto it = std::find_if(m_ds_request_list.begin(), m_ds_request_list.end(), [&](auto &inst) {
+                        if(req.m_message_id == std::get<2>(inst)) {
+                            //Update the recieved response
+                            std::get<4>(inst) = req.m_response;
+                            return(true);
+                        }
+                            return(false);
+                    });
+                }
+            }
+            //Received on UDP Socket
+            if(udp_client_fd() > 0 && FD_ISSET(udp_client_fd(), &fdList)) {
+                //From UDP Server
+                std::string ret("");
+                //auto ret = udp_rx(udp_client_fd());
+                std::cout << "line: " << __LINE__ << " Xreating issue " << std::endl;
+                if(ret.length()) {
+                    //Got Response from UDP client
+                }
+            }
+            //The TCP client might be connected
+            if(tcp_client_fd() > 0 && FD_ISSET(tcp_client_fd(), &fdWrite)) {
+                //TCP connection established successfully.
+                //Push changes if any now
+                //When the connection establishment (for non-blocking socket) encounters an error, the descriptor becomes both readable and writable (p. 530 of TCPv2).
+                socklen_t optlen;
+                std::int32_t optval = -1;
+                optlen = sizeof (optval);
+                if(!getsockopt(tcp_client_fd(), SOL_SOCKET, SO_ERROR, &optval, &optlen)) {
+                    struct sockaddr_in peer;
+                    socklen_t sock_len = sizeof(peer);
+                    memset(&peer, 0, sizeof(peer));
+                    auto ret = getpeername(tcp_client_fd(), (struct sockaddr *)&peer, &sock_len);
+                    if(ret < 0 && errno == ENOTCONN) {
+                        close(tcp_client_fd());
+                        m_client_list.erase(tcp_client_fd());
+                        tcp_client_fd(-1);
+                    } else {
+                        //TCP Client is connected 
+                        tcp_client(client_connection::Connected);
+                        std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " Connected successfully" << std::endl;
+                        FD_CLR(tcp_client_fd(), &fdWrite);
+                        FD_ZERO(&fdWrite);
+
+                        if(!m_ds_request_list.empty()) {
+                            for(const auto& ent: m_ds_request_list) {
+                                std::string payload = std::get<4>(ent);
+                                //don't push to TCP server If response is awaited.
+                                if(payload.compare("default")) {
+                                    std::uint32_t payload_len = payload.length();
+                                    payload_len = htonl(payload_len);
+                                    std::stringstream data("");
+                                    data.write (reinterpret_cast <char *>(&payload_len), sizeof(payload_len));
+                                    data << payload;
+                                    tcp_tx(tcp_client_fd(), data.str());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if(tcp_client_fd() > 0 && FD_ISSET(tcp_client_fd(), &fdList)) {
+                //From TCP Server
+                std::string request("");
+                auto req = tcp_rx(tcp_client_fd());
+                std::cout << "line: "<< __LINE__ << " Response received from TCP Server length:" << req.length() << std::endl;
+                if(!req.length() && tcp_client() == client_connection::Connected) {
+                    close(tcp_client_fd());
+                    m_client_list.erase(tcp_client_fd());
+                    tcp_client_fd(-1);
+                } else {
+                    //Got from TCP server 
+                    std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req.length() << std::endl;
+                }
+            }
+        } 
+        else if(!conn_id) {
+            //time out happens
+            if(tcp_client_fd() < 0 && !m_config["protocol"].compare("tcp")) {
+                create_and_connect_tcp_socket(m_config["server-ip"], std::stoi(m_config["server-port"]));
+            }
+
+            if(udp_client_fd() > 0  && !m_config["protocol"].compare("udp")) {
+                for(auto it = m_ds_request_list.begin(); it != m_ds_request_list.end(); ++it) {
+                    std::string payload = std::get<4>(*it);
+                    //don't push to TCP server If response is awaited.
+                    if(payload.compare("default")) {
+                        if(udp_tx(udp_client_fd(), payload) > 0) {
+                            //Sent successfully
+                            it = m_ds_request_list.erase(it);
+                        }
+                    }
+                }
+            }
+        }
+    } /* End of while loop */
+}
 #endif /* __uniimage__cc__ */
