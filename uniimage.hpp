@@ -474,7 +474,7 @@ class noor::NetInterface {
 class TcpClient: public noor::NetInterface {
     public:
         TcpClient(): NetInterface() {
-
+            tcp_client_async(config().at("server-ip"), std::stoi(config().at("server-port")));
         }
         ~TcpClient() {}
         virtual std::int32_t onReceive(std::string in) override {}
@@ -485,7 +485,7 @@ class TcpClient: public noor::NetInterface {
 class UnixClient: public noor::NetInterface {
     public:
         UnixClient(): NetInterface() {
-
+            uds_client();
         }
         ~UnixClient() {
 
@@ -498,7 +498,7 @@ class UnixClient: public noor::NetInterface {
 class UdpClient: public noor::NetInterface {
     public:
         UdpClient(): NetInterface() {
-
+            udp_client(config().at("server-ip"), std::stoi(config().at("server-port")));
         }
         ~UdpClient() {
 
