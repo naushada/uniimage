@@ -1974,4 +1974,59 @@ std::int32_t noor::NetInterface::getVariable(const std::string& prefix, std::vec
     return(ret);
 }
 
+std::int32_t TcpClient::onReceive(std::string in) {
+
+}
+
+std::int32_t TcpClient::onClose(std::string in) {
+
+}
+
+std::int32_t UdpClient::onReceive(std::string in) {
+
+}
+
+std::int32_t UdpClient::onClose(std::string in) {
+
+}
+
+std::int32_t UnixClient::onReceive(std::string in) {
+
+}
+
+std::int32_t UnixClient::onClose(std::string in) {
+
+}
+
+std::int32_t TcpServer::onReceive(std::string in) {
+
+}
+
+std::int32_t TcpServer::onClose(std::string in) {
+
+}
+
+std::int32_t UdpServer::onReceive(std::string in) {
+
+}
+
+std::int32_t UdpServer::onClose(std::string in) {
+
+}
+
+std::int32_t WebServer::onReceive(std::string in) {
+
+}
+
+std::int32_t WebServer::onClose(std::string in) {
+
+}
+
+std::int32_t UnixServer::onReceive(std::string in) {
+
+}
+
+std::int32_t UnixServer::onClose(std::string in) {
+
+}
 #endif /* __uniimage__cc__ */
