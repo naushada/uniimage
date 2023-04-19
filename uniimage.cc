@@ -939,7 +939,7 @@ int main(std::int32_t argc, char *argv[]) {
             }
         }
     }
-    
+ #if 0   
     noor::Uniimage unimanage(config);
     if(!config["role"].compare("client")) {
         unimanage.getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
@@ -954,7 +954,35 @@ int main(std::int32_t argc, char *argv[]) {
         ///server 
         unimanage.start_server();
     }
+#endif
 
+    std::unique_ptr<noor::NetInterface> unimanage = std::make_unique<noor::NetInterface>(config);
+    std::vector<std::tuple<std::unique_ptr<noor::NetInterface>, noor::NetInterface::socket_type>> ent;
+    if(!config["role"].compare("client")) {
+
+        if(!config["protocol"].compare("tcp")) {
+            ent.push_back({std::make_unique<TcpClient>(), noor::NetInterface::socket_type::TCP_ASYNC});
+        } else {
+            ent.push_back({std::make_unique<UdpClient>(), noor::NetInterface::socket_type::UDP});
+        }
+        ent.push_back({std::make_unique<UnixClient>(), noor::NetInterface::socket_type::UNIX});
+
+        unimanage->start_client(100, std::move(ent));
+
+        #if 0
+        unimanage.getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
+        //unimanage.getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}});
+        //unimanage.getVariable("net.interface.wifi[]");
+        //unimanage.getVariable("services.sms.provision.enable");
+        //unimanage.registerGetVariable("services.sms.provision.enable");
+        unimanage.getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
+        unimanage.getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
+        unimanage.start_client();
+        #endif
+    } else if(!config["role"].compare("server")) {
+        ///server 
+        //unimanage.start_server();
+    }
     //noor::Dsclient inst;
     //std::atomic<std::uint16_t> message_id;
     //++message_id;

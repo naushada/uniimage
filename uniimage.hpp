@@ -320,8 +320,11 @@ class noor::NetInterface {
             
         };
 
-        NetInterface(std::unique_ptr<NetInterface> hook);
-        ~NetInterface();
+        NetInterface() {}
+        NetInterface(std::unordered_map<std::string, std::string> config) {
+            m_config = config;
+        }
+        virtual ~NetInterface() {}
         void close();
         std::int32_t tcp_client(const std::string& IP, std::uint16_t PORT, bool isAsync=true);
         std::int32_t tcp_client_async(const std::string& IP, std::uint16_t PORT);
@@ -347,8 +350,8 @@ class noor::NetInterface {
         std::int32_t getSingleVariable(const std::string& prefix);
         std::int32_t getVariable(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter);
 
-        virtual std::int32_t onReceive(std::string in) = 0;
-        virtual std::int32_t onClose(std::string in) = 0;
+        virtual std::int32_t onReceive(std::string in) {std::cout << "line: " << __LINE__ << "Must be overriden " << std::endl;}
+        virtual std::int32_t onClose(std::string in) {std::cout << "line: " << __LINE__ << "Must be overriden " << std::endl;}
 
 
         void ip(std::string IP) {
@@ -466,6 +469,70 @@ class noor::NetInterface {
         std::unique_ptr<NetInterface> m_hook;
         std::unordered_map<std::string, std::string> m_config;
 
+};
+
+class TcpClient: public noor::NetInterface {
+    public:
+        TcpClient(): NetInterface() {
+
+        }
+        ~TcpClient() {}
+        virtual std::int32_t onReceive(std::string in) override;
+        virtual std::int32_t onClose(std::string in) override;
+};
+
+
+class UnixClient: public noor::NetInterface {
+    public:
+        UnixClient(): NetInterface() {
+
+        }
+        ~UnixClient() {
+
+        }
+        virtual std::int32_t onReceive(std::string in) override;
+        virtual std::int32_t onClose(std::string in) override;
+};
+
+
+class UdpClient: public noor::NetInterface {
+    public:
+        UdpClient(): NetInterface() {
+
+        }
+        ~UdpClient() {
+            
+        }
+        virtual std::int32_t onReceive(std::string in) override;
+        virtual std::int32_t onClose(std::string in) override;
+};
+
+
+class TcpServer: public noor::NetInterface {
+    public:
+        virtual std::int32_t onReceive(std::string in) override;
+        virtual std::int32_t onClose(std::string in) override;
+};
+
+
+class UdpServer: public noor::NetInterface {
+    public:
+        virtual std::int32_t onReceive(std::string in) override;
+        virtual std::int32_t onClose(std::string in) override;
+};
+
+
+class WebServer: public noor::NetInterface {
+    public:
+        virtual std::int32_t onReceive(std::string in) override;
+        virtual std::int32_t onClose(std::string in) override;
+};
+
+
+class UnixServer: public noor::NetInterface {
+    public:
+        virtual std::int32_t onReceive(std::string in) override;
+        virtual std::int32_t onClose(std::string in) override;
 };
 
 #endif /* __uniimage__hpp__ */
