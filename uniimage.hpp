@@ -465,8 +465,8 @@ class noor::NetInterface {
         std::vector<std::tuple<std::uint16_t, std::uint16_t, std::uint16_t, std::string, std::string>> m_response_cache;
         std::unordered_map<std::int32_t, client_connection> m_connected_clients;
         //key = fd, Value = <fd, IP, PORT, RxBytes, TxBytes, timestamp>
-        std::unordered_map<std::int32_t, std::vector<std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>>> m_web_connections;
-        std::unordered_map<std::int32_t, std::vector<std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>>> m_tcp_connections;
+        std::unordered_map<std::int32_t, std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>> m_web_connections;
+        std::unordered_map<std::int32_t, std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>> m_tcp_connections;
         std::unique_ptr<NetInterface> m_hook;
         std::unordered_map<std::string, std::string> m_config;
 

@@ -1792,7 +1792,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
                             auto req = tcp_rx(request);
                             if(!req) {
                                 //client is closed now
-                                std::cout << "line: " << __LINE__ << " req.length: " << req.length() <<std::endl; 
+                                std::cout << "line: " << __LINE__ << " req.length: " << request.length() <<std::endl; 
                                 ::close(channel);
                                 auto it = inst->tcp_connections().erase(channel);
                             } else {
