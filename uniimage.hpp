@@ -323,7 +323,7 @@ class noor::NetInterface {
 
         NetInterface() {}
         NetInterface(std::unordered_map<std::string, std::string> config) {
-            m_config = config;
+            m_config = std::move(config);
         }
         virtual ~NetInterface() {}
         void close();
@@ -480,6 +480,9 @@ class noor::NetInterface {
 class TcpClient: public noor::NetInterface {
     public:
         TcpClient(): NetInterface() {
+            if(config().empty()) {
+                std::cout << "line: " << __LINE__ << " config is empty " << std::endl;
+            }
             tcp_client_async(config().at("server-ip"), std::stoi(config().at("server-port")));
         }
         ~TcpClient() {}

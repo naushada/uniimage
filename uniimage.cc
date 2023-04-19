@@ -886,42 +886,42 @@ int main(std::int32_t argc, char *argv[]) {
                     std::cout << "Invalid value for --role, possible value is client or server "<< std::endl;
                     return(-1);
                 }
-                config.insert(std::make_pair("role", optarg));
+                config.emplace(std::make_pair("role", optarg));
             }
             break;
             case 'i':
             {
-                config.insert(std::make_pair("server-ip", optarg));
+                config.emplace(std::make_pair("server-ip", optarg));
             }
             break;
             case 'p':
             {
-                config.insert(std::make_pair("server-port", optarg));
+                config.emplace(std::make_pair("server-port", optarg));
             }
             break;
             case 'w':
             {
-                config.insert(std::make_pair("web-port", optarg));
+                config.emplace(std::make_pair("web-port", optarg));
             }
             break;
             case 'a':
             {
-                config.insert(std::make_pair("wan-interface-instance", optarg));
+                config.emplace(std::make_pair("wan-interface-instance", optarg));
             }
             break;
             case 't':
             {
-                config.insert(std::make_pair("protocol", optarg));
+                config.emplace(std::make_pair("protocol", optarg));
             }
             break;
             case 's':
             {
-                config.insert(std::make_pair("self-ip", optarg));
+                config.emplace(std::make_pair("self-ip", optarg));
             }
             break;
             case 'e':
             {
-                config.insert(std::make_pair("self-port", optarg));
+                config.emplace(std::make_pair("self-port", optarg));
             }
             break;
 
