@@ -1663,9 +1663,10 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                     std::string payload = std::get<4>(*iter);
                     //don't push to TCP server If response is awaited.
                     if(payload.compare("default")) {
-                        if(std::get<0>(*iter).udp_tx(payload) > 0) {
+                        if(std::get<0>(*it)->udp_tx(payload) > 0) {
                             //Sent successfully
-                            std::get<0>(*iter)->response_cache().erase(std::get<0>(*iter)->handle());
+                            auto channel = std::get<0>(*it)->handle();
+                            iter = std::get<0>(*it)->response_cache().erase(iter);
                         }
                     }
                 }
@@ -1673,4 +1674,116 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
         }
     } /* End of while loop */
 }
+
+
+
+std::string noor::NetInterface::serialise(noor::Uniimage::EMP_COMMAND_TYPE cmd_type, noor::Uniimage::EMP_COMMAND_ID cmd, const std::string& req) {
+    cmd = (noor::Uniimage::EMP_COMMAND_ID)(((cmd_type & 0x3 ) << 12) | (cmd & 0xFFF));
+
+    std::uint32_t payload_len = req.length();
+    std::cout << "Payload length: " << payload_len << " REQUEST: " << req << std::endl;
+    cmd = (noor::Uniimage::EMP_COMMAND_ID)htons(cmd);
+    ++m_message_id;
+    auto message_id = htons(m_message_id);
+    payload_len = htonl(payload_len);
+    std::stringstream data("");
+    
+    data.write (reinterpret_cast <char *>(&cmd), sizeof(cmd));
+    data.write (reinterpret_cast <char *>(&message_id), sizeof(message_id));
+    data.write (reinterpret_cast <char *>(&payload_len), sizeof(payload_len));
+    data << req;
+    return(data.str());
+}
+
+std::string noor::NetInterface::packArguments(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter) {
+    std::stringstream rsp("");
+    std::string result("");
+
+    if(prefix.empty()) {
+        //This can't be empty
+        return(std::string());
+    } else {
+	if(true == is_register_variable()) {
+	    // First argument will be callback , hence blank
+            rsp << "[\"\", \"" <<  prefix << "\"";
+	} else {
+            rsp << "[\"" <<  prefix << "\"";
+	}
+        result += rsp.str();
+        rsp.str("");
+    }
+    if(!fields.empty()) {
+        if(1 == fields.size()) {
+            rsp << ",[\"" << fields.at(0) << "\"]";
+            result += rsp.str();
+	    rsp.str("");
+        } else {
+            rsp << ",[";
+            for(const auto& elm: fields) {
+                rsp << "\"" << elm << "\",";
+            }
+            result += rsp.str().substr(0, rsp.str().length() - 1);
+            result += "]";
+            rsp.str("");
+        }
+    }
+    //filters ... field_name__eq
+    if(!filter.empty()) {
+        if(1 == filter.size()) {
+            rsp << ",{\"" << filter.at(0) << "\"}";
+            result += rsp.str();
+            rsp.str("");
+        } else {
+            rsp << ",{";
+            for(const auto& elm: filter) {
+                rsp << "\"" << elm << "\",";
+            }
+            result += rsp.str().substr(0, rsp.str().length() - 1);
+            result += "}";
+            rsp.str("");
+        }
+    }
+    result +="]";
+    return(result);
+}
+
+std::int32_t noor::NetInterface::registerGetVariable(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter) {
+    noor::Uniimage::EMP_COMMAND_TYPE cmd_type = noor::Uniimage::EMP_COMMAND_TYPE::Request;
+    noor::Uniimage::EMP_COMMAND_ID cmd = noor::Uniimage::EMP_COMMAND_ID::RegisterGetVariable;
+    is_register_variable(true); 
+    std::string rsp = packArguments(prefix, fields, filter);
+    std::string data = serialise(cmd_type, cmd, rsp);
+    std::int32_t ret = uds_tx(data);
+    std::string response;
+    add_element_to_cache({cmd_type, cmd, message_id(), prefix, response}); 
+    is_register_variable(false);
+    return(ret);
+
+}
+
+std::int32_t noor::NetInterface::getSingleVariable(const std::string& prefix) {
+    noor::Uniimage::EMP_COMMAND_TYPE cmd_type = noor::Uniimage::EMP_COMMAND_TYPE::Request;
+    noor::Uniimage::EMP_COMMAND_ID cmd = noor::Uniimage::EMP_COMMAND_ID::SingleGetVariable;
+    
+    std::string rsp = packArguments(prefix);
+    std::string data = serialise(cmd_type, cmd, rsp);
+    std::int32_t ret = uds_tx(data); 
+    std::string response;
+    add_element_to_cache({cmd_type, cmd, message_id(), prefix, response}); 
+    
+    return(ret);
+}
+
+std::int32_t noor::NetInterface::getVariable(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter) {
+    noor::Uniimage::EMP_COMMAND_TYPE cmd_type = noor::Uniimage::EMP_COMMAND_TYPE::Request;
+    noor::Uniimage::EMP_COMMAND_ID cmd = noor::Uniimage::EMP_COMMAND_ID::GetVariable;
+
+    std::string rsp = packArguments(prefix, fields, filter);
+    std::string data = serialise(cmd_type, cmd, rsp);
+    std::int32_t ret = uds_tx(data);
+    std::string response;
+    add_element_to_cache({cmd_type, cmd, message_id(), prefix, response});
+    return(ret);
+}
+
 #endif /* __uniimage__cc__ */

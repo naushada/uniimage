@@ -341,8 +341,11 @@ class noor::NetInterface {
         std::int32_t udp_tx(const std::string& data);
         std::int32_t uds_tx(const std::string& data);
         std::int32_t tcp_tx(const std::string& data);
-        
-
+        std::string serialise(noor::Uniimage::EMP_COMMAND_TYPE cmd_type, noor::Uniimage::EMP_COMMAND_ID cmd, const std::string& req);
+        std::string packArguments(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
+        std::int32_t registerGetVariable(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter);
+        std::int32_t getSingleVariable(const std::string& prefix);
+        std::int32_t getVariable(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter);
 
         virtual std::int32_t onReceive(std::string in) = 0;
         virtual std::int32_t onClose(std::string in) = 0;
@@ -379,7 +382,7 @@ class noor::NetInterface {
         auto& response_cache() {
             return(m_response_cache);
         }
-        void add_element_to_cache(auto elm) {
+        void add_element_to_cache(std::tuple<std::uint16_t, std::uint16_t, std::uint16_t, std::string, std::string> elm) {
             m_response_cache.push_back(elm);
         }
 
@@ -430,8 +433,20 @@ class noor::NetInterface {
         void config(auto cfg) {
             m_config = std::move(cfg);
         }
+        bool is_register_variable() const {
+            return(m_is_register_variable);
+        }
+        void is_register_variable(bool yes) {
+            m_is_register_variable = yes;
+        }
+
+        std::atomic<std::uint16_t>& message_id() {
+            return(m_message_id);
+        }
 
     private:
+        std::atomic<std::uint16_t> m_message_id;
+        bool m_is_register_variable;
         std::string m_uds_socket_name;
         std::string m_ip;
         std::uint16_t m_port;
