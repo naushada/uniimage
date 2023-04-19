@@ -967,6 +967,10 @@ int main(std::int32_t argc, char *argv[]) {
         }
         ent.push_back({std::make_unique<UnixClient>(), noor::NetInterface::socket_type::UNIX});
 
+        unimanage->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
+        unimanage->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
+        unimanage->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
+
         unimanage->start_client(100, std::move(ent));
 
         #if 0
