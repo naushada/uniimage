@@ -873,7 +873,7 @@ std::vector<struct option> options = {
 
 int main(std::int32_t argc, char *argv[]) {
     std::int32_t c;
-    std::int32_t option_index;
+    std::int32_t option_index = 0;
     std::string role("");
     std::unordered_map<std::string, std::string> config;
     
