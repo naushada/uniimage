@@ -1703,7 +1703,124 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
     } /* End of while loop */
 }
 
+std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<noor::NetInterface>, noor::NetInterface::socket_type>> intf_list) {
+    int conns   = -1;
+    fd_set readFd;
 
+    while (1) {
+        /* A timeout for 100ms*/ 
+        struct timeval to;
+        to.tv_sec = timeout_in_ms /1000;
+        to.tv_usec = timeout_in_ms % 1000;
+        FD_ZERO(&readFd);
+
+        for(const auto& ent: intf_list) {
+            auto &inst = std::get<0>(ent);
+            auto type = std::get<1>(ent);
+
+            if(noor::NetInterface::socket_type::WEB == type && inst->handle() > 0) {
+                FD_SET(inst->handle(), &readFd);
+            }
+            
+            if(noor::NetInterface::socket_type::TCP == type && inst->handle() > 0) {
+                FD_SET(inst->handle(), &readFd);
+            }
+
+            if(noor::NetInterface::socket_type::UNIX == type && inst->handle() > 0) {
+                FD_SET(inst->handle(), &readFd);
+            }
+
+            if(noor::NetInterface::socket_type::UDP == type && inst->handle() > 0) {
+                FD_SET(inst->handle(), &readFd);
+            }
+            
+            if(!inst->web_connections().empty()) {
+                for(const auto& ent: inst->web_connections()) {
+                    FD_SET(std::get<0>(ent), &readFd);    
+                }
+            }
+
+            if(!inst->tcp_connections().empty()) {
+                for(const auto& ent: inst->tcp_connections()) {
+                    FD_SET(std::get<0>(ent), &readFd);    
+                }
+            }
+        }
+
+        conns = ::select(FD_SETSIZE, (fd_set *)&readFd, (fd_set *)NULL, (fd_set *)NULL, (struct timeval *)&to);
+
+        if(conns > 0) {
+            for(const auto& ent: intf_list) {
+                auto &inst = std::get<0>(ent);
+                auto type = std::get<1>(ent);
+                if(type == noor::NetInterface::socket_type::TCP && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
+                    // accept a new connection 
+                    struct sockaddr_in peer;
+                    socklen_t peer_len = sizeof(peer);
+                    auto newFd = ::accept(inst->handle(), (struct sockaddr *)&peer, &peer_len);
+                    if(newFd > 0) {
+                        std::string IP(inet_ntoa(peer.sin_addr));
+                        inst->tcp_connections().insert(std::make_pair(newFd, std::make_tuple(newFd, IP, ntohs(peer.sin_port), 0, 0, 0)));
+                        std::cout << "line: " << __LINE__ << " chnnel: " << newFd << " IP: " << IP <<" port:" << ntohs(peer.sin_port) << std::endl;
+                    }
+                }
+                if(type == noor::NetInterface::socket_type::WEB && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
+                    // accept a new connection 
+                    struct sockaddr_in peer;
+                    socklen_t peer_len = sizeof(peer);
+                    auto newFd = ::accept(inst->handle(), (struct sockaddr *)&peer, &peer_len);
+                    if(newFd > 0) {
+                        std::string IP(inet_ntoa(peer.sin_addr));
+                        inst->web_connections().insert(std::make_pair(newFd, std::make_tuple(newFd, IP, ntohs(peer.sin_port), 0, 0, 0)));
+                    }
+                }
+                if(type == noor::NetInterface::socket_type::UDP && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
+                    std::string response("");
+                    auto res = inst->udp_rx(response);
+                    if(!res) {
+                        std::cout << "line: " << __LINE__ << " Received from UDP Client " << std::endl;
+                        std::cout << "line: " << __LINE__ << " Response: " << response;
+                    }
+                }
+                if(!inst->tcp_connections().empty()) {
+                    for(const auto &ent: inst->tcp_connections()) {
+                        auto channel = std::get<0>(ent);
+                        if(channel > 0 && FD_ISSET(channel, &readFd)) {
+                            //From TCP Client
+                            std::string request("");
+                            std::cout << "line: "<< __LINE__ << " Response received from TCP client: " << std::endl;
+                            auto req = tcp_rx(request);
+                            if(!req) {
+                                //client is closed now
+                                std::cout << "line: " << __LINE__ << " req.length: " << req.length() <<std::endl; 
+                                ::close(channel);
+                                auto it = inst->tcp_connections().erase(channel);
+                            } else {
+                                std::cout << "line: " << __LINE__ << " Data TCP Server Received: " << request << std::endl;
+                            }
+                        }
+                    }
+                }
+                if(!inst->web_connections().empty()) {
+                    for(const auto &ent: inst->web_connections()) {
+                        auto channel = std::get<0>(ent);
+                        if(channel > 0 && FD_ISSET(channel, &readFd)) {
+                            //From Web Client 
+                            std::string request("");
+                            std::cout <<"line: " << __LINE__ << " Request from Web client received on channel "<< channel << std::endl;
+                            auto req = web_rx(request);
+                            if(!req) {
+                                //client is closed now 
+                                ::close(channel);
+                                auto it = inst->web_connections().erase(channel);
+                            }
+                        }
+                    }
+                }
+            }
+        } /*conns > 0*/
+    } /* End of while loop */
+}
 
 std::string noor::NetInterface::serialise(noor::Uniimage::EMP_COMMAND_TYPE cmd_type, noor::Uniimage::EMP_COMMAND_ID cmd, const std::string& req) {
     cmd = (noor::Uniimage::EMP_COMMAND_ID)(((cmd_type & 0x3 ) << 12) | (cmd & 0xFFF));

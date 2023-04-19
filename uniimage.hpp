@@ -316,7 +316,8 @@ class noor::NetInterface {
             TCP = 1,
             TCP_ASYNC = 2,
             UDP = 3,
-            UDP_ASYNC = 4
+            UDP_ASYNC = 4,
+            WEB = 5
             
         };
 
