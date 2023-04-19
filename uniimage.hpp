@@ -516,6 +516,10 @@ class UdpClient: public noor::NetInterface {
 
 class TcpServer: public noor::NetInterface {
     public:
+        TcpServer() : NetInterface() {
+            tcp_server(config().at("server-ip"), std::stoi(config().at("server-port")));
+        }
+        ~TcpServer() {}
         virtual std::int32_t onReceive(std::string in) override {}
         virtual std::int32_t onClose(std::string in) override {}
 };
@@ -523,6 +527,10 @@ class TcpServer: public noor::NetInterface {
 
 class UdpServer: public noor::NetInterface {
     public:
+        UdpServer() : NetInterface() {
+            udp_server(config().at("server-ip"), std::stoi(config().at("server-port")));
+        }
+        ~UdpServer() {}
         virtual std::int32_t onReceive(std::string in) override {}
         virtual std::int32_t onClose(std::string in) override {}
 };
@@ -530,6 +538,11 @@ class UdpServer: public noor::NetInterface {
 
 class WebServer: public noor::NetInterface {
     public:
+        WebServer() : NetInterface() {
+            web_server(config().at("server-ip"), std::stoi(config().at("web-port")));
+        }
+        ~WebServer() {}
+        
         virtual std::int32_t onReceive(std::string in) override {}
         virtual std::int32_t onClose(std::string in) override {}
 };

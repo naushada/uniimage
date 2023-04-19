@@ -981,7 +981,18 @@ int main(std::int32_t argc, char *argv[]) {
         #endif
     } else if(!config["role"].compare("server")) {
         ///server 
-        //unimanage.start_server();
+        if(!config["protocol"].compare("tcp")) {
+            ent.push_back({std::make_unique<TcpServer>(), noor::NetInterface::socket_type::TCP});
+        } else if(!config["protocol"].compare("udp")) {
+            ent.push_back({std::make_unique<UdpServer>(), noor::NetInterface::socket_type::UDP});
+        } else {
+            //Don't know 
+        }
+        
+        ent.push_back({std::make_unique<WebServer>(), noor::NetInterface::socket_type::WEB});
+
+        //ent.push_back({std::make_unique<UnixServer>(), noor::NetInterface::socket_type::UNIX});
+        unimanage->start_server(100, std::move(ent));
     }
     //noor::Dsclient inst;
     //std::atomic<std::uint16_t> message_id;
