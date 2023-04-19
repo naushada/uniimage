@@ -419,6 +419,10 @@ class noor::NetInterface {
             return(m_tcp_connections);
         }
 
+        auto& unix_connections() {
+            return(m_unix_connections);
+        }
+
         auto& inet_server() {
             return(m_inet_server);
         }
@@ -467,6 +471,7 @@ class noor::NetInterface {
         //key = fd, Value = <fd, IP, PORT, RxBytes, TxBytes, timestamp>
         std::unordered_map<std::int32_t, std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>> m_web_connections;
         std::unordered_map<std::int32_t, std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>> m_tcp_connections;
+        std::unordered_map<std::int32_t, std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>> m_unix_connections;
         std::unique_ptr<NetInterface> m_hook;
         std::unordered_map<std::string, std::string> m_config;
 

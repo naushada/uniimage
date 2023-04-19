@@ -1774,6 +1774,16 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
                         inst->web_connections().insert(std::make_pair(newFd, std::make_tuple(newFd, IP, ntohs(peer.sin_port), 0, 0, 0)));
                     }
                 }
+                if(type == noor::NetInterface::socket_type::UNIX && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
+                    // accept a new connection 
+                    struct sockaddr_un peer;
+                    socklen_t peer_len = sizeof(peer);
+                    auto newFd = ::accept(inst->handle(), (struct sockaddr *)&peer, &peer_len);
+                    if(newFd > 0) {
+                        std::string IP(peer.sun_path);
+                        inst->unix_connections().insert(std::make_pair(newFd, std::make_tuple(newFd, IP, 0, 0, 0, 0)));
+                    }
+                }
                 if(type == noor::NetInterface::socket_type::UDP && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
                     std::string response("");
                     auto res = inst->udp_rx(response);
@@ -1782,6 +1792,8 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
                         std::cout << "line: " << __LINE__ << " Response: " << response;
                     }
                 }
+                
+
                 if(!inst->tcp_connections().empty()) {
                     for(const auto &ent: inst->tcp_connections()) {
                         auto channel = std::get<0>(ent);
@@ -1813,6 +1825,22 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
                                 //client is closed now 
                                 ::close(channel);
                                 auto it = inst->web_connections().erase(channel);
+                            }
+                        }
+                    }
+                }
+                if(!inst->unix_connections().empty()) {
+                    for(const auto &ent: inst->web_connections()) {
+                        auto channel = std::get<0>(ent);
+                        if(channel > 0 && FD_ISSET(channel, &readFd)) {
+                            //From Web Client 
+                            std::string request("");
+                            std::cout <<"line: " << __LINE__ << " Request from Web client received on channel "<< channel << std::endl;
+                            auto req = uds_rx();
+                            if(!req.m_response.length()) {
+                                //client is closed now 
+                                ::close(channel);
+                                auto it = inst->unix_connections().erase(channel);
                             }
                         }
                     }
