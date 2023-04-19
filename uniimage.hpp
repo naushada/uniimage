@@ -477,8 +477,8 @@ class TcpClient: public noor::NetInterface {
 
         }
         ~TcpClient() {}
-        virtual std::int32_t onReceive(std::string in) override;
-        virtual std::int32_t onClose(std::string in) override;
+        virtual std::int32_t onReceive(std::string in) override {}
+        virtual std::int32_t onClose(std::string in) override {}
 };
 
 
@@ -490,8 +490,8 @@ class UnixClient: public noor::NetInterface {
         ~UnixClient() {
 
         }
-        virtual std::int32_t onReceive(std::string in) override;
-        virtual std::int32_t onClose(std::string in) override;
+        virtual std::int32_t onReceive(std::string in) override {}
+        virtual std::int32_t onClose(std::string in) override {}
 };
 
 
@@ -501,38 +501,38 @@ class UdpClient: public noor::NetInterface {
 
         }
         ~UdpClient() {
-            
+
         }
-        virtual std::int32_t onReceive(std::string in) override;
-        virtual std::int32_t onClose(std::string in) override;
+        virtual std::int32_t onReceive(std::string in) override {}
+        virtual std::int32_t onClose(std::string in) override {}
 };
 
 
 class TcpServer: public noor::NetInterface {
     public:
-        virtual std::int32_t onReceive(std::string in) override;
-        virtual std::int32_t onClose(std::string in) override;
+        virtual std::int32_t onReceive(std::string in) override {}
+        virtual std::int32_t onClose(std::string in) override {}
 };
 
 
 class UdpServer: public noor::NetInterface {
     public:
-        virtual std::int32_t onReceive(std::string in) override;
-        virtual std::int32_t onClose(std::string in) override;
+        virtual std::int32_t onReceive(std::string in) override {}
+        virtual std::int32_t onClose(std::string in) override {}
 };
 
 
 class WebServer: public noor::NetInterface {
     public:
-        virtual std::int32_t onReceive(std::string in) override;
-        virtual std::int32_t onClose(std::string in) override;
+        virtual std::int32_t onReceive(std::string in) override {}
+        virtual std::int32_t onClose(std::string in) override {}
 };
 
 
 class UnixServer: public noor::NetInterface {
     public:
-        virtual std::int32_t onReceive(std::string in) override;
-        virtual std::int32_t onClose(std::string in) override;
+        virtual std::int32_t onReceive(std::string in) override {}
+        virtual std::int32_t onClose(std::string in) override {}
 };
 
 #endif /* __uniimage__hpp__ */
