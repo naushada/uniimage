@@ -323,7 +323,10 @@ class noor::NetInterface {
 
         NetInterface() {}
         NetInterface(std::unordered_map<std::string, std::string> config) {
-            m_config = std::move(config);
+            if(config.empty()) {
+                std::cout << "line: " << __LINE__ << " config is empty" << std::endl;
+            }
+            m_config = config;
         }
         virtual ~NetInterface() {}
         void close();
@@ -435,12 +438,14 @@ class noor::NetInterface {
             return(m_un_server);
         }
         
-        auto& config() const {
+        std::unordered_map<std::string, std::string> get_config() const {
             return(m_config);
         }
-        void config(auto cfg) {
-            m_config = std::move(cfg);
+
+        void set_config(std::unordered_map<std::string, std::string> cfg) {
+            m_config = cfg;
         }
+
         bool is_register_variable() const {
             return(m_is_register_variable);
         }
@@ -479,11 +484,14 @@ class noor::NetInterface {
 
 class TcpClient: public noor::NetInterface {
     public:
-        TcpClient(): NetInterface() {
-            if(config().empty()) {
+        TcpClient(auto cfg): NetInterface(cfg) {
+            if(get_config().empty()) {
                 std::cout << "line: " << __LINE__ << " config is empty " << std::endl;
             }
-            tcp_client_async(config().at("server-ip"), std::stoi(config().at("server-port")));
+            for(const auto& ent: get_config()) {
+                std::cout << "line: " << " key:" << ent.first << " Value:" << ent.second << std::endl; 
+            }
+            tcp_client_async(get_config().at("server-ip"), std::stoi(get_config().at("server-port")));
         }
         ~TcpClient() {}
         virtual std::int32_t onReceive(std::string in) override;
@@ -506,8 +514,8 @@ class UnixClient: public noor::NetInterface {
 
 class UdpClient: public noor::NetInterface {
     public:
-        UdpClient(): NetInterface() {
-            udp_client(config().at("server-ip"), std::stoi(config().at("server-port")));
+        UdpClient(auto config): NetInterface(config) {
+            udp_client(get_config().at("server-ip"), std::stoi(get_config().at("server-port")));
         }
         ~UdpClient() {
 
@@ -519,8 +527,8 @@ class UdpClient: public noor::NetInterface {
 
 class TcpServer: public noor::NetInterface {
     public:
-        TcpServer() : NetInterface() {
-            tcp_server(config().at("server-ip"), std::stoi(config().at("server-port")));
+        TcpServer(auto config) : NetInterface(config) {
+            tcp_server(get_config().at("server-ip"), std::stoi(get_config().at("server-port")));
         }
         ~TcpServer() {}
         virtual std::int32_t onReceive(std::string in) override;
@@ -530,8 +538,8 @@ class TcpServer: public noor::NetInterface {
 
 class UdpServer: public noor::NetInterface {
     public:
-        UdpServer() : NetInterface() {
-            udp_server(config().at("server-ip"), std::stoi(config().at("server-port")));
+        UdpServer(auto config) : NetInterface(config) {
+            udp_server(get_config().at("server-ip"), std::stoi(get_config().at("server-port")));
         }
         ~UdpServer() {}
         virtual std::int32_t onReceive(std::string in) override;
@@ -541,8 +549,8 @@ class UdpServer: public noor::NetInterface {
 
 class WebServer: public noor::NetInterface {
     public:
-        WebServer() : NetInterface() {
-            web_server(config().at("server-ip"), std::stoi(config().at("web-port")));
+        WebServer(auto config) : NetInterface(config) {
+            web_server(get_config().at("server-ip"), std::stoi(get_config().at("web-port")));
         }
         ~WebServer() {}
 

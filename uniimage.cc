@@ -956,22 +956,25 @@ int main(std::int32_t argc, char *argv[]) {
     }
 #endif
 
-    std::unique_ptr<noor::NetInterface> unimanage = std::make_unique<noor::NetInterface>(config);
+    //std::unique_ptr<noor::NetInterface> unimanage = std::make_unique<noor::NetInterface>();
+    noor::NetInterface unimanage;
     std::vector<std::tuple<std::unique_ptr<noor::NetInterface>, noor::NetInterface::socket_type>> ent;
+    //unimanage.set_config(config);
+
     if(!config["role"].compare("client")) {
 
         if(!config["protocol"].compare("tcp")) {
-            ent.push_back({std::make_unique<TcpClient>(), noor::NetInterface::socket_type::TCP_ASYNC});
+            ent.push_back({std::make_unique<TcpClient>(config), noor::NetInterface::socket_type::TCP_ASYNC});
         } else {
-            ent.push_back({std::make_unique<UdpClient>(), noor::NetInterface::socket_type::UDP});
+            ent.push_back({std::make_unique<UdpClient>(config), noor::NetInterface::socket_type::UDP});
         }
         ent.push_back({std::make_unique<UnixClient>(), noor::NetInterface::socket_type::UNIX});
 
-        unimanage->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
-        unimanage->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
-        unimanage->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
+        unimanage.getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
+        unimanage.getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
+        unimanage.getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
 
-        unimanage->start_client(100, std::move(ent));
+        unimanage.start_client(100, std::move(ent));
 
         #if 0
         unimanage.getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
@@ -986,17 +989,17 @@ int main(std::int32_t argc, char *argv[]) {
     } else if(!config["role"].compare("server")) {
         ///server 
         if(!config["protocol"].compare("tcp")) {
-            ent.push_back({std::make_unique<TcpServer>(), noor::NetInterface::socket_type::TCP});
+            ent.push_back({std::make_unique<TcpServer>(config), noor::NetInterface::socket_type::TCP});
         } else if(!config["protocol"].compare("udp")) {
-            ent.push_back({std::make_unique<UdpServer>(), noor::NetInterface::socket_type::UDP});
+            ent.push_back({std::make_unique<UdpServer>(config), noor::NetInterface::socket_type::UDP});
         } else {
             //Don't know 
         }
         
-        ent.push_back({std::make_unique<WebServer>(), noor::NetInterface::socket_type::WEB});
+        ent.push_back({std::make_unique<WebServer>(config), noor::NetInterface::socket_type::WEB});
 
         //ent.push_back({std::make_unique<UnixServer>(), noor::NetInterface::socket_type::UNIX});
-        unimanage->start_server(100, std::move(ent));
+        unimanage.start_server(100, std::move(ent));
     }
     //noor::Dsclient inst;
     //std::atomic<std::uint16_t> message_id;
