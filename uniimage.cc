@@ -1566,34 +1566,33 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
         FD_ZERO(&fdWrite);
         
         for(auto& elm: intf_list) {
-            if(noor::NetInterface::socket_type::UNIX == std::get<1>(elm)) {
-                auto& inst = std::get<0>(elm);
-                FD_SET(inst->handle(), &fdList);
+            auto type = std::get<1>(elm);
+            auto& inst = std::get<0>(elm);
+            auto channel = inst->handle();
 
-            } else if(noor::NetInterface::socket_type::TCP_ASYNC == std::get<1>(elm)) {
-                auto& inst = std::get<0>(elm);
-                if(inst->handle() > 0 && inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Connected) {
-                    FD_SET(inst->handle(), &fdList);
-                } else if(inst->handle() > 0 && inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Inprogress) {
-                    FD_SET(inst->handle(), &fdWrite);
+            if(noor::NetInterface::socket_type::UNIX == type) {
+                FD_SET(channel, &fdList);
+
+            } else if(noor::NetInterface::socket_type::TCP_ASYNC == type) {
+                if(channel > 0 && inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
+                    FD_SET(channel, &fdList);
+                } else if(channel > 0 && inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Inprogress) {
+                    FD_SET(channel, &fdWrite);
                 }
 
-            } else if(noor::NetInterface::socket_type::UDP == std::get<1>(elm)) {
-                auto& inst = std::get<0>(elm);
+            } else if(noor::NetInterface::socket_type::UDP == channel) {
+                if(channel > 0 ) {
+                    FD_SET(channel, &fdList);
+                }
+
+            } else if(noor::NetInterface::socket_type::UDP_ASYNC == type) {
                 if(inst->handle() > 0 ) {
-                    FD_SET(inst->handle(), &fdList);
+                    FD_SET(channel, &fdList);
                 }
 
-            } else if(noor::NetInterface::socket_type::UDP_ASYNC == std::get<1>(elm)) {
-                auto& inst = std::get<0>(elm);
-                if(inst->handle() > 0 ) {
-                    FD_SET(inst->handle(), &fdList);
-                }
-
-            } else if(noor::NetInterface::socket_type::TCP == std::get<1>(elm)) {
-                auto& inst = std::get<0>(elm);
-                if(inst->handle() > 0 && inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Connected) {
-                    FD_SET(inst->handle(), &fdList);
+            } else if(noor::NetInterface::socket_type::TCP == channel) {
+                if(channel > 0 && inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
+                    FD_SET(channel, &fdList);
                 }
             }
         }
@@ -1604,23 +1603,25 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
 
             for(auto& elm: intf_list) {
                 auto channel = std::get<0>(elm)->handle();
-                auto& type = std::get<1>(elm);
+                auto type = std::get<1>(elm);
+                auto& inst = std::get<0>(elm);
+
                 // Received on Unix Socket
                 if(type == noor::NetInterface::socket_type::UNIX && FD_ISSET(channel, &fdList)) {
                     //Received response from Data store
                     std::string request("");
                     std::cout << "From DS line: " << __LINE__<<" Response received " << std::endl;
-                    auto req = std::get<0>(elm)->uds_rx();
+                    auto req = inst->uds_rx();
                     if(!req.m_response.length()) {
                         ::close(channel);
                         connected_client().erase(channel);
-                        std::get<0>(elm)->handle(-1);
+                        inst->handle(-1);
                         std::cout <<"line: " << __LINE__ << " Data store is down" << std::endl;
                         exit(0);
                     } else {
                         std::cout << "line: " << __LINE__ << " Caching the response" << std::endl;
                         //Cache the response and will be sent later when TCP connection is established or upon timed out
-                        std::get<0>(elm)->update_response_to_cache(req.m_message_id, req.m_response);
+                        inst->update_response_to_cache(req.m_message_id, req.m_response);
                     }
                 }
                 //Received on UDP Socket
@@ -1648,17 +1649,17 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                         auto ret = getpeername(channel, (struct sockaddr *)&peer, &sock_len);
                         if(ret < 0 && errno == ENOTCONN) {
                             ::close(channel);
-                            std::get<0>(elm)->connected_client().erase(channel);
-                            std::get<0>(elm)->handle(-1);
+                            inst->connected_client().erase(channel);
+                            inst->handle(-1);
                         } else {
                             //TCP Client is connected 
-                            std::get<0>(elm)->connected_client(noor::NetInterface::client_connection::Connected);
+                            inst->connected_client(noor::NetInterface::client_connection::Connected);
                             std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " Connected successfully" << std::endl;
                             FD_CLR(channel, &fdWrite);
                             FD_ZERO(&fdWrite);
 
-                            if(!std::get<0>(elm)->response_cache().empty()) {
-                                for(const auto& ent: std::get<0>(elm)->response_cache()) {
+                            if(!inst->response_cache().empty()) {
+                                for(const auto& ent: inst->response_cache()) {
                                     std::string payload = std::get<4>(ent);
                                     //don't push to TCP server If response is awaited.
                                     if(payload.compare("default")) {
@@ -1667,7 +1668,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                                         std::stringstream data("");
                                         data.write (reinterpret_cast <char *>(&payload_len), sizeof(payload_len));
                                         data << payload;
-                                        std::get<0>(elm)->tcp_tx(data.str());
+                                        inst->tcp_tx(data.str());
                                     }
                                 }
                             }
@@ -1677,12 +1678,12 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 if(type == noor::NetInterface::socket_type::TCP_ASYNC && FD_ISSET(channel, &fdList)) {
                     //From TCP Server
                     std::string request("");
-                    auto req = std::get<0>(elm)->tcp_rx(request);
+                    auto req = inst->tcp_rx(request);
                     std::cout << "line: "<< __LINE__ << " Response received from TCP Server length:" << req << std::endl;
-                    if(!req && std::get<0>(elm)->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
+                    if(!req && inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
                         ::close(channel);
-                        std::get<0>(elm)->connected_client().erase(channel);
-                        std::get<0>(elm)->handle(-1);
+                        inst->connected_client().erase(channel);
+                        inst->handle(-1);
                     } else {
                         //Got from TCP server 
                         std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req << std::endl;
@@ -1697,8 +1698,8 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 return(type == noor::NetInterface::socket_type::TCP_ASYNC);
             });
 
-            if(it != intf_list.end() && !m_config["protocol"].compare("tcp")) {
-                std::get<0>(*it)->tcp_client_async(m_config["server-ip"], std::stoi(m_config["server-port"]));
+            if(it != intf_list.end() && !std::get<0>(*it)->get_config().at("protocol").compare("tcp")) {
+                std::get<0>(*it)->tcp_client_async(std::get<0>(*it)->get_config().at("server-ip"), std::stoi(std::get<0>(*it)->get_config().at("server-port")));
             }
 
             it = std::find_if(intf_list.begin(), intf_list.end(), [&](auto& ent) {
@@ -1706,7 +1707,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 return(type == noor::NetInterface::socket_type::UDP);
             });
 
-            if(it != intf_list.end()  && !m_config["protocol"].compare("udp")) {
+            if(it != intf_list.end()  && !std::get<0>(*it)->get_config().at("protocol").compare("udp")) {
                 for(auto iter = std::get<0>(*it)->response_cache().begin(); iter != std::get<0>(*it)->response_cache().end(); ++iter) {
                     std::string payload = std::get<4>(*iter);
                     //don't push to TCP server If response is awaited.
@@ -1722,7 +1723,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
         }
     } /* End of while loop */
 }
-
+ 
 std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<noor::NetInterface>, noor::NetInterface::socket_type>> intf_list) {
     int conns   = -1;
     fd_set readFd;
