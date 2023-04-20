@@ -1698,7 +1698,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 return(type == noor::NetInterface::socket_type::TCP_ASYNC);
             });
 
-            if(it != intf_list.end() && !std::get<0>(*it)->get_config().at("protocol").compare("tcp")) {
+            if((it != intf_list.end()) && (std::get<0>(*it)->handle() < 0) && (!std::get<0>(*it)->get_config().at("protocol").compare("tcp"))) {
                 std::get<0>(*it)->tcp_client_async(std::get<0>(*it)->get_config().at("server-ip"), std::stoi(std::get<0>(*it)->get_config().at("server-port")));
             }
 
