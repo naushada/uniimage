@@ -1651,6 +1651,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                             ::close(channel);
                             inst->connected_client().erase(channel);
                             inst->handle(-1);
+                            std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " connection Failed" << std::endl;
                         } else {
                             //TCP Client is connected 
                             inst->connected_client(noor::NetInterface::client_connection::Connected);
@@ -1697,7 +1698,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 auto type = std::get<1>(ent);
                 return(type == noor::NetInterface::socket_type::TCP_ASYNC);
             });
-
+            std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " handle: " << std::get<0>(*it)->handle() << std::endl;
             if((it != intf_list.end()) && (std::get<0>(*it)->handle() < 0) && (!std::get<0>(*it)->get_config().at("protocol").compare("tcp"))) {
                 std::get<0>(*it)->tcp_client_async(std::get<0>(*it)->get_config().at("server-ip"), std::stoi(std::get<0>(*it)->get_config().at("server-port")));
             }
