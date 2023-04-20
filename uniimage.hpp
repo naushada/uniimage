@@ -321,12 +321,28 @@ class noor::NetInterface {
             
         };
 
-        NetInterface() {}
+        NetInterface() {
+            m_is_register_variable = false; 
+            m_handle = -1; 
+            m_message_id = 0; 
+            m_response_cache.clear();
+            m_connected_clients.clear();
+            m_web_connections.clear();
+            m_tcp_connections.clear();
+
+            }
         NetInterface(std::unordered_map<std::string, std::string> config) {
             if(config.empty()) {
                 std::cout << "line: " << __LINE__ << " config is empty" << std::endl;
             }
             m_config = config;
+            m_is_register_variable = false; 
+            m_handle = -1; 
+            m_message_id = 0; 
+            m_response_cache.clear();
+            m_connected_clients.clear();
+            m_web_connections.clear();
+            m_tcp_connections.clear();
         }
         virtual ~NetInterface() {}
         void close();
@@ -354,8 +370,15 @@ class noor::NetInterface {
         std::int32_t getSingleVariable(const std::string& prefix);
         std::int32_t getVariable(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
 
-        virtual std::int32_t onReceive(std::string in) {std::cout << "line: " << __LINE__ << "Must be overriden " << std::endl;}
-        virtual std::int32_t onClose(std::string in) {std::cout << "line: " << __LINE__ << "Must be overriden " << std::endl;}
+        virtual std::int32_t onReceive(std::string in) {
+            std::cout << "line: " << __LINE__ << "Must be overriden " << std::endl;
+            return(-1);
+        }
+
+        virtual std::int32_t onClose(std::string in) {
+            std::cout << "line: " << __LINE__ << "Must be overriden " << std::endl;
+            return(-1);
+        }
 
 
         void ip(std::string IP) {
@@ -477,7 +500,6 @@ class noor::NetInterface {
         std::unordered_map<std::int32_t, std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>> m_web_connections;
         std::unordered_map<std::int32_t, std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>> m_tcp_connections;
         std::unordered_map<std::int32_t, std::tuple<std::int32_t, std::string, std::int32_t, std::int32_t, std::int32_t, std::int32_t>> m_unix_connections;
-        std::unique_ptr<NetInterface> m_hook;
         std::unordered_map<std::string, std::string> m_config;
 
 };

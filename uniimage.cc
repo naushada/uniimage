@@ -970,9 +970,9 @@ int main(std::int32_t argc, char *argv[]) {
         }
         ent.push_back({std::make_unique<UnixClient>(), noor::NetInterface::socket_type::UNIX});
 
-        unimanage.getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
-        unimanage.getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
-        unimanage.getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
+        std::get<0>(ent.at(1))->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
+        std::get<0>(ent.at(1))->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
+        std::get<0>(ent.at(1))->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
 
         unimanage.start_client(100, std::move(ent));
 
@@ -1236,6 +1236,7 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
 }
 
 std::int32_t noor::NetInterface::web_rx(std::string& data) {
+    std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << " handle:" << handle() <<std::endl;
     std::array<char, 2048> arr;
     arr.fill(0);
     std::int32_t len = -1;
@@ -1244,6 +1245,7 @@ std::int32_t noor::NetInterface::web_rx(std::string& data) {
         std::cout << "function: "<<__FUNCTION__ << " line: " << __LINE__ << " closed" << std::endl;
     } else if(len > 0) {
         std::string ss(arr.data(), len);
+        std::cout << "HTTP: " << std::endl << ss << std::endl;
         Http http(ss);
         std::cout << "line: " << __LINE__ << " URI: "   << http.uri()    << std::endl;
         std::cout << "line: " << __LINE__ << " Header " << http.header() << std::endl;
