@@ -959,6 +959,7 @@ int main(std::int32_t argc, char *argv[]) {
     //std::unique_ptr<noor::NetInterface> unimanage = std::make_unique<noor::NetInterface>();
     noor::NetInterface unimanage;
     std::vector<std::tuple<std::unique_ptr<noor::NetInterface>, noor::NetInterface::socket_type>> ent;
+    ent.clear();
     //unimanage.set_config(config);
 
     if(!config["role"].compare("client")) {
@@ -973,7 +974,7 @@ int main(std::int32_t argc, char *argv[]) {
         std::get<0>(ent.at(1))->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
         std::get<0>(ent.at(1))->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
         std::get<0>(ent.at(1))->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
-
+        std::cout << "line: " << __LINE__ << " TCP_ASYNC: " << std::get<0>(ent.at(0))->handle() << " : " <<std::get<0>(ent.at(0))->connected_client(std::get<0>(ent.at(0))->handle())<< std::endl;
         unimanage.start_client(100, std::move(ent));
 
         #if 0
@@ -1055,9 +1056,9 @@ std::int32_t noor::NetInterface::tcp_client(const std::string& IP, std::uint16_t
     }
     
     auto rc = ::connect(channel, (struct sockaddr *)&inet_server(), len);
-    if(rc == -1) {
+    if(rc < 0) {
         if(errno == EINPROGRESS) {    
-            std::cout << "line: " << __LINE__ << " Connection is in-progress: "<< std::endl;
+            //std::cout << "line: " << __LINE__ << " Connection is in-progress: "<< std::endl;
             connected_client(noor::NetInterface::client_connection::Inprogress);
             return(0);
 
@@ -1125,6 +1126,7 @@ std::int32_t noor::NetInterface::uds_client(const std::string& PATH) {
     }
 
     handle(channel);
+    connected_client(noor::NetInterface::client_connection::Disconnected);
     /* set the reuse address flag so we don't get errors when restarting */
     auto flag = 1;
     if(::setsockopt(channel, SOL_SOCKET, SO_REUSEADDR, (std::int8_t *)&flag, sizeof(flag)) < 0 ) {
@@ -1196,6 +1198,47 @@ noor::NetInterface::emp noor::NetInterface::uds_rx() {
     return(emp {});
 }
 
+std::int32_t noor::NetInterface::tcp_rx(std::int32_t channel, std::string& data) {
+    std::array<char, 8> arr;
+    arr.fill(0);
+    std::int32_t len = -1;
+    //read 4 bytes - the payload length
+    len = recv(channel, arr.data(), sizeof(std::int32_t), 0);
+    if(!len) {
+        std::cout << "line: " << __LINE__ << " closed" << std::endl;
+        return(std::string().length());
+    } else if(len > 0) {
+        //std::cout << "line: " << __LINE__ << " len: " << len << std::endl;
+        std::uint32_t payload_len; 
+        std::istringstream istrstr;
+        istrstr.rdbuf()->pubsetbuf(arr.data(), len);
+        istrstr.read(reinterpret_cast<char *>(&payload_len), sizeof(payload_len));
+        std::int32_t offset = 0;
+        payload_len = ntohl(payload_len);
+        //std::cout << "line: " << __LINE__ << " tcp payload length: " << payload_len << std::endl;
+
+        std::unique_ptr<char[]> payload = std::make_unique<char[]>(payload_len);
+        do {
+            len = recv(channel, (void *)(payload.get() + offset), (size_t)(payload_len - offset), 0);
+            if(len < 0) {
+                offset = len;
+                break;
+            }
+            offset += len;
+        } while(offset != payload_len);
+                
+        if(offset == payload_len) {
+            std::string ss((char *)payload.get(), payload_len);
+            //std::cout <<"line: "<< __LINE__ << " From TCP Client Received: " << ss << std::endl;
+            data = ss;
+            return(payload_len);
+        }
+    }
+
+    return(std::string().length());
+
+}
+
 std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
     std::array<char, 8> arr;
     arr.fill(0);
@@ -1206,11 +1249,12 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
         std::cout << "line: " << __LINE__ << " closed" << std::endl;
         return(std::string().length());
     } else if(len > 0) {
+        std::cout << "line: " << __LINE__ << " len: " << len << std::endl;
         std::uint32_t payload_len; 
         std::istringstream istrstr;
         istrstr.rdbuf()->pubsetbuf(arr.data(), len);
         istrstr.read(reinterpret_cast<char *>(&payload_len), sizeof(payload_len));
-        std::uint32_t offset = 0;
+        std::int32_t offset = 0;
         payload_len = ntohl(payload_len);
         std::cout << "line: " << __LINE__ << " tcp payload length: " << payload_len << std::endl;
 
@@ -1232,6 +1276,85 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
         }
     }
 
+    return(std::string().length());
+}
+
+std::string noor::NetInterface::build_web_response(Http& http) {
+    //Build HTTP Response
+    std::cout << "URI: " << http.uri() << " method: " << http.method() << std::endl;
+    std::stringstream ss("");
+    std::string payload("<html><title></title><head></head><body><h2>Redirecting to http://10.20.129.111</h2></body></html>");
+    ss << "HTTP/1.1 301 Moved Permanently\r\n"
+       //<< "Location: https://192.168.1.1:443\r\n"
+       << "Location: http://10.20.129.111\r\n"
+       << "Content-length: " << payload.length() << "\r\n"
+       << "Connection: close\r\n"
+       //<< "Cookie: unity_token=IC3wWl66tT3XrqO88iLBSxCYbuxhPvGz; unity_login=admin; last_connection={\"success_last\":\"Sat Apr  8 03:47:22 2023\",\"success_from\":\"192.168.1.100\",\"failures\":0}" 
+       << "\r\n\r\n"
+       << payload;
+
+    std::cout << "The Web Response is " << ss.str() << std::endl;
+    return(ss.str());
+}
+
+std::int32_t noor::NetInterface::web_rx(std::int32_t channel, std::string& data) {
+    std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << " handle:" << handle() <<std::endl;
+    std::array<char, 2048> arr;
+    arr.fill(0);
+    std::int32_t len = -1;
+    len = recv(channel, arr.data(), arr.size(), 0);
+    if(!len) {
+        std::cout << "function: "<<__FUNCTION__ << " line: " << __LINE__ << " closed" << std::endl;
+    } else if(len > 0) {
+        std::string ss(arr.data(), len);
+        std::cout << "HTTP: " << std::endl << ss << std::endl;
+        Http http(ss);
+        std::cout << "line: " << __LINE__ << " URI: "   << http.uri()    << std::endl;
+        std::cout << "line: " << __LINE__ << " Header " << http.header() << std::endl;
+        std::cout << "line: " << __LINE__ << " Body "   << http.body()   << std::endl;
+        std::uint32_t offset = 0;
+        auto cl = http.value("Content-Length");
+        size_t payload_len = 0;
+
+        if(!cl.length()) {
+            std::cout << "line: " << __LINE__ << " Content-Length is not present" << std::endl;
+            data = ss;
+            return(data.length());
+
+        } else {
+            std::cout << "function: "<< __FUNCTION__ << " line: " << __LINE__ <<" value of Content-Length " << cl << std::endl;
+            payload_len = std::stoi(cl);
+            if(len == (payload_len + http.header().length())) {
+                //We have received the full HTTP packet
+                data = ss;
+                return(data.length());
+
+            } else {
+                //compute the effective length
+                payload_len = (std::stoi(cl) + http.header().length() - len);
+                std::unique_ptr<char[]> payload = std::make_unique<char[]>(payload_len);
+                std::int32_t tmp_len = 0;
+                do {
+                    tmp_len = recv(channel, (void *)(payload.get() + offset), (size_t)(payload_len - offset), 0);
+                    if(tmp_len < 0) {
+                        offset = len;
+                        break;
+                    }
+                    offset += tmp_len;
+                    
+                } while(offset != payload_len);
+
+                if(offset == payload_len) {
+                    std::string header(arr.data(), len);
+                    std::string ss((char *)payload.get(), payload_len);
+                    std::string request = header + ss;
+                    std::cout << "function: "<<__FUNCTION__ <<" line: " <<__LINE__ << " From Web Client Received: " << request << std::endl;
+                    data = ss;
+                    return(data.length());
+                }
+            }
+        }
+    }
     return(std::string().length());
 }
 
@@ -1447,19 +1570,36 @@ std::int32_t noor::NetInterface::web_server(const std::string& IP, std::uint16_t
         std::cout << "line: "<< __LINE__ << " bind to IP: " << IP << " PORT: " << PORT << " Failed" <<std::endl;
         ::close(handle());
         handle(-1);
-	    return(-1);
+	return(-1);
     }
 
     if(listen(channel, 10) < 0) {
         std::cout << "line: " << __LINE__ << " listen to channel: " << channel << " Failed" <<std::endl;
         ::close(handle());
         handle(-1);
-	    return(-1);
+	return(-1);
     }
 
     return(0); 
 }
 
+
+std::int32_t noor::NetInterface::web_tx(std::int32_t channel, const std::string& req) {
+    std::int32_t offset = 0;
+    std::int32_t req_len = req.length();
+    std::int32_t len = -1;
+
+    do {
+        len = send(channel, req.data() + offset, req_len - offset, 0);
+        if(len < 0) {
+            offset = len;
+            break;
+        } 
+        offset += len;
+    } while(offset != req_len);
+
+    return(offset);
+}
 
 std::int32_t noor::NetInterface::web_tx(const std::string& req) {
     std::int32_t offset = 0;
@@ -1533,7 +1673,7 @@ std::int32_t noor::NetInterface::tcp_tx(const std::string& req) {
     std::int32_t len = -1;
     auto payload_len = htonl(req_len);
     std::stringstream data("");
-    data.write (reinterpret_cast <char *>(&payload_len), sizeof(payload_len));
+    data.write (reinterpret_cast <char *>(&payload_len), sizeof(std::int32_t));
     data << req;
     req_len = data.str().length();
     do {
@@ -1546,7 +1686,7 @@ std::int32_t noor::NetInterface::tcp_tx(const std::string& req) {
     } while(offset != req_len);
 
     if(offset == req_len) {
-        std::cout << "Request sent to TCP Server successfully" << std::endl;
+        std::cout <<"line: "<< __LINE__ << " Request sent to TCP Server successfully: req_len:" << req_len << std::endl;
     }
     return(offset);
 }      
@@ -1565,33 +1705,29 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
         FD_ZERO(&fdList);
         FD_ZERO(&fdWrite);
         
-        for(auto& elm: intf_list) {
-            auto type = std::get<1>(elm);
-            auto& inst = std::get<0>(elm);
+        for(auto& [inst, type]: intf_list) {
             auto channel = inst->handle();
 
-            if(noor::NetInterface::socket_type::UNIX == type) {
+            if(channel > 0 && noor::NetInterface::socket_type::UNIX == type) {
                 FD_SET(channel, &fdList);
 
-            } else if(noor::NetInterface::socket_type::TCP_ASYNC == type) {
-                if(channel > 0 && inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
+            } else if(channel > 0 && noor::NetInterface::socket_type::TCP_ASYNC == type) {
+                if(inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
+                    //std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " handle: " << channel << "connected " << std::endl;
                     FD_SET(channel, &fdList);
-                } else if(channel > 0 && inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Inprogress) {
+                } else if(inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Inprogress) {
+                    //std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " handle: " << channel << "fdWrite " << std::endl;
                     FD_SET(channel, &fdWrite);
                 }
 
-            } else if(noor::NetInterface::socket_type::UDP == channel) {
-                if(channel > 0 ) {
-                    FD_SET(channel, &fdList);
-                }
+            } else if(channel > 0 && noor::NetInterface::socket_type::UDP == type) {
+                FD_SET(channel, &fdList);
 
-            } else if(noor::NetInterface::socket_type::UDP_ASYNC == type) {
-                if(inst->handle() > 0 ) {
-                    FD_SET(channel, &fdList);
-                }
+            } else if(channel > 0 && noor::NetInterface::socket_type::UDP_ASYNC == type) {
+                FD_SET(channel, &fdList);
 
-            } else if(noor::NetInterface::socket_type::TCP == channel) {
-                if(channel > 0 && inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
+            } else if(channel > 0 && noor::NetInterface::socket_type::TCP == type) {
+                if(inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
                     FD_SET(channel, &fdList);
                 }
             }
@@ -1601,20 +1737,18 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
         
         if(conns > 0) {
 
-            for(auto& elm: intf_list) {
-                auto channel = std::get<0>(elm)->handle();
-                auto type = std::get<1>(elm);
-                auto& inst = std::get<0>(elm);
+            for(auto& [inst, type]: intf_list) {
+                auto channel = inst->handle();
 
                 // Received on Unix Socket
-                if(type == noor::NetInterface::socket_type::UNIX && FD_ISSET(channel, &fdList)) {
+                if(channel > 0 && type == noor::NetInterface::socket_type::UNIX && FD_ISSET(channel, &fdList)) {
                     //Received response from Data store
                     std::string request("");
                     std::cout << "From DS line: " << __LINE__<<" Response received " << std::endl;
                     auto req = inst->uds_rx();
                     if(!req.m_response.length()) {
                         ::close(channel);
-                        connected_client().erase(channel);
+                        inst->connected_client().erase(channel);
                         inst->handle(-1);
                         std::cout <<"line: " << __LINE__ << " Data store is down" << std::endl;
                         exit(0);
@@ -1625,7 +1759,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                     }
                 }
                 //Received on UDP Socket
-                if(type == noor::NetInterface::socket_type::UDP && FD_ISSET(channel, &fdList)) {
+                if(channel > 0 && type == noor::NetInterface::socket_type::UDP && FD_ISSET(channel, &fdList)) {
                     //From UDP Server
                     std::string ret("");
                     //auto ret = udp_rx(udp_client_fd());
@@ -1635,7 +1769,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                     }
                 }
                 //The TCP client might be connected
-                if(type == noor::NetInterface::socket_type::TCP_ASYNC && FD_ISSET(channel, &fdWrite)) {
+                if(channel > 0 && type == noor::NetInterface::socket_type::TCP_ASYNC && FD_ISSET(channel, &fdWrite)) {
                     //TCP connection established successfully.
                     //Push changes if any now
                     //When the connection establishment (for non-blocking socket) encounters an error, the descriptor becomes both readable and writable (p. 530 of TCPv2).
@@ -1651,17 +1785,22 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                             ::close(channel);
                             inst->connected_client().erase(channel);
                             inst->handle(-1);
-                            std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " connection Failed" << std::endl;
-                        } else {
+                        } else if(!ret) {
                             //TCP Client is connected 
                             inst->connected_client(noor::NetInterface::client_connection::Connected);
-                            std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " Connected successfully" << std::endl;
                             FD_CLR(channel, &fdWrite);
                             FD_ZERO(&fdWrite);
+                            std::cout << "line: " << __LINE__ << " Connected to server handle: " << inst->handle() << std::endl;
 
-                            if(!inst->response_cache().empty()) {
-                                for(const auto& ent: inst->response_cache()) {
-                                    std::string payload = std::get<4>(ent);
+			    auto it = std::find_if(intf_list.begin(), intf_list.end(), [&](const auto& ent) {
+			        auto type = std::get<1>(ent);
+			        return(noor::NetInterface::socket_type::UNIX == type);
+			    });
+
+                            if(it!= intf_list.end() && !std::get<0>(*it)->response_cache().empty()) {
+                                for(const auto& ent: std::get<0>(*it)->response_cache()) {
+                                    std::string payload = std::get<cache_element::RESPONSE>(ent);
+
                                     //don't push to TCP server If response is awaited.
                                     if(payload.compare("default")) {
                                         std::uint32_t payload_len = payload.length();
@@ -1669,14 +1808,15 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                                         std::stringstream data("");
                                         data.write (reinterpret_cast <char *>(&payload_len), sizeof(payload_len));
                                         data << payload;
-                                        inst->tcp_tx(data.str());
+                                        auto ret = inst->tcp_tx(payload);
+					std::cout << "line: " << __LINE__ << " sent to TCP Server data-length:"<< ret << std::endl;
                                     }
                                 }
                             }
                         }
                     }
                 }
-                if(type == noor::NetInterface::socket_type::TCP_ASYNC && FD_ISSET(channel, &fdList)) {
+                if(channel > 0 && type == noor::NetInterface::socket_type::TCP_ASYNC && FD_ISSET(channel, &fdList)) {
                     //From TCP Server
                     std::string request("");
                     auto req = inst->tcp_rx(request);
@@ -1691,14 +1831,13 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                     }
                 }
             }
-        } 
+        }
         else if(!conns) {
             //time out happens
             auto it = std::find_if(intf_list.begin(), intf_list.end(), [&](auto& ent) {
                 auto type = std::get<1>(ent);
                 return(type == noor::NetInterface::socket_type::TCP_ASYNC);
             });
-            std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " handle: " << std::get<0>(*it)->handle() << std::endl;
             if((it != intf_list.end()) && (std::get<0>(*it)->handle() < 0) && (!std::get<0>(*it)->get_config().at("protocol").compare("tcp"))) {
                 std::get<0>(*it)->tcp_client_async(std::get<0>(*it)->get_config().at("server-ip"), std::stoi(std::get<0>(*it)->get_config().at("server-port")));
             }
@@ -1736,9 +1875,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
         to.tv_usec = timeout_in_ms % 1000;
         FD_ZERO(&readFd);
 
-        for(const auto& ent: intf_list) {
-            auto &inst = std::get<0>(ent);
-            auto type = std::get<1>(ent);
+        for(const auto& [inst, type]: intf_list) {
 
             if(noor::NetInterface::socket_type::WEB == type && inst->handle() > 0) {
                 FD_SET(inst->handle(), &readFd);
@@ -1757,14 +1894,14 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
             }
             
             if(!inst->web_connections().empty()) {
-                for(const auto& ent: inst->web_connections()) {
-                    FD_SET(std::get<0>(ent), &readFd);    
+                for(const auto& [key, value]: inst->web_connections()) {
+                    FD_SET(std::get<0>(value), &readFd);    
                 }
             }
 
             if(!inst->tcp_connections().empty()) {
-                for(const auto& ent: inst->tcp_connections()) {
-                    FD_SET(std::get<0>(ent), &readFd);    
+                for(const auto& [key, value]: inst->tcp_connections()) {
+                    FD_SET(std::get<0>(value), &readFd);    
                 }
             }
         }
@@ -1772,9 +1909,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
         conns = ::select(FD_SETSIZE, (fd_set *)&readFd, (fd_set *)NULL, (fd_set *)NULL, (struct timeval *)&to);
 
         if(conns > 0) {
-            for(const auto& ent: intf_list) {
-                auto &inst = std::get<0>(ent);
-                auto type = std::get<1>(ent);
+            for(const auto& [inst, type]: intf_list) {
                 if(type == noor::NetInterface::socket_type::TCP && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
                     // accept a new connection 
                     struct sockaddr_in peer;
@@ -1794,6 +1929,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
                     if(newFd > 0) {
                         std::string IP(inet_ntoa(peer.sin_addr));
                         inst->web_connections().insert(std::make_pair(newFd, std::make_tuple(newFd, IP, ntohs(peer.sin_port), 0, 0, 0)));
+                        std::cout << "line: " << __LINE__ << " chnnel: " << newFd << " IP: " << IP <<" port:" << ntohs(peer.sin_port) << std::endl;
                     }
                 }
                 if(type == noor::NetInterface::socket_type::UNIX && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
@@ -1815,15 +1951,14 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
                     }
                 }
                 
-
                 if(!inst->tcp_connections().empty()) {
-                    for(const auto &ent: inst->tcp_connections()) {
-                        auto channel = std::get<0>(ent);
+                    for(const auto &[key, value]: inst->tcp_connections()) {
+                        auto channel = std::get<0>(value);
                         if(channel > 0 && FD_ISSET(channel, &readFd)) {
                             //From TCP Client
                             std::string request("");
                             std::cout << "line: "<< __LINE__ << " Response received from TCP client: " << std::endl;
-                            auto req = tcp_rx(request);
+                            auto req = inst->tcp_rx(channel, request);
                             if(!req) {
                                 //client is closed now
                                 std::cout << "line: " << __LINE__ << " req.length: " << request.length() <<std::endl; 
@@ -1836,24 +1971,30 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
                     }
                 }
                 if(!inst->web_connections().empty()) {
-                    for(const auto &ent: inst->web_connections()) {
-                        auto channel = std::get<0>(ent);
+                    for(const auto &[key, value]: inst->web_connections()) {
+                        auto channel = std::get<0>(value);
                         if(channel > 0 && FD_ISSET(channel, &readFd)) {
                             //From Web Client 
                             std::string request("");
                             std::cout <<"line: " << __LINE__ << " Request from Web client received on channel "<< channel << std::endl;
-                            auto req = web_rx(request);
+                            auto req = inst->web_rx(channel, request);
                             if(!req) {
+                                std::cout << "line: " << __LINE__ << " req.length: " << request.length() <<std::endl; 
                                 //client is closed now 
                                 ::close(channel);
                                 auto it = inst->web_connections().erase(channel);
-                            }
+                            } else {
+                                std::cout << "line: " << __LINE__ << " Data WEB Server Received: " << request << std::endl;
+				Http http(request);
+				auto rsp = build_web_response(http);
+				auto ret = web_tx(channel, rsp);
+			    }
                         }
                     }
                 }
                 if(!inst->unix_connections().empty()) {
-                    for(const auto &ent: inst->web_connections()) {
-                        auto channel = std::get<0>(ent);
+                    for(const auto &[key, value]: inst->web_connections()) {
+                        auto channel = std::get<0>(value);
                         if(channel > 0 && FD_ISSET(channel, &readFd)) {
                             //From Web Client 
                             std::string request("");

@@ -67,8 +67,9 @@ void noor::Http::parse_uri(const std::string& in)
 
       //e.g. The request string is GET /webui/main.04e34705edfe295e.js HTTP/1.1
       auto req_method = first_line.substr(0, offset);
+      std::cout << "line: " << __LINE__ << " req_method " << req_method << std::endl;
       method(req_method); //GET/POST/PUT/DELETE/OPTIONS
-      offset = first_line.find_first_of("?");
+      offset = first_line.find_first_of("?", 0);
 
       if(std::string::npos == offset) {
 
@@ -85,7 +86,8 @@ void noor::Http::parse_uri(const std::string& in)
 
       } else {
 
-        auto resource_uri = first_line.substr(method().length() + 1, offset - (method().length() - 1));
+        auto resource_uri = first_line.substr(method().length() + 1, offset - ((method().length() + 1)));
+	std::cout << "line: " << __LINE__ << " resource_uri: " << resource_uri << std::endl;
         uri(resource_uri);
       }
     }

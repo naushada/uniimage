@@ -330,7 +330,7 @@ class noor::NetInterface {
             m_web_connections.clear();
             m_tcp_connections.clear();
 
-            }
+        }
         NetInterface(std::unordered_map<std::string, std::string> config) {
             if(config.empty()) {
                 std::cout << "line: " << __LINE__ << " config is empty" << std::endl;
@@ -346,7 +346,7 @@ class noor::NetInterface {
         }
         virtual ~NetInterface() {}
         void close();
-        std::int32_t tcp_client(const std::string& IP, std::uint16_t PORT, bool isAsync=true);
+        std::int32_t tcp_client(const std::string& IP, std::uint16_t PORT, bool isAsync=false);
         std::int32_t tcp_client_async(const std::string& IP, std::uint16_t PORT);
         std::int32_t udp_client(const std::string& IP, std::uint16_t PORT);
         std::int32_t uds_client(const std::string& PATH="/var/run/treemgr/treemgr.sock");
@@ -356,8 +356,11 @@ class noor::NetInterface {
         std::int32_t start_client(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<NetInterface>, socket_type>>);
         std::int32_t start_server(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<NetInterface>, socket_type>>);
         std::int32_t tcp_rx(std::string& data);
+        std::int32_t tcp_rx(std::int32_t channel, std::string& data);
         emp uds_rx();
         std::int32_t web_rx(std::string& data);
+        std::int32_t web_rx(std::int32_t fd, std::string& data);
+        std::int32_t web_tx(std::int32_t channel, const std::string& req);
         std::int32_t udp_rx(std::string& data);
         
         std::int32_t web_tx(const std::string& data);
@@ -369,6 +372,7 @@ class noor::NetInterface {
         std::int32_t registerGetVariable(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
         std::int32_t getSingleVariable(const std::string& prefix);
         std::int32_t getVariable(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
+        std::string build_web_response(Http& http);
 
         virtual std::int32_t onReceive(std::string in) {
             std::cout << "line: " << __LINE__ << "Must be overriden " << std::endl;
@@ -417,16 +421,21 @@ class noor::NetInterface {
         }
 
         void update_response_to_cache(std::int32_t id, std::string rsp) {
-            std::find_if(response_cache().begin(), response_cache().end(), [&](auto& inst) {
+            auto it = std::find_if(m_response_cache.begin(), m_response_cache.end(), [&](auto& inst) {
                 if(std::get<cache_element::MESSAGE_ID>(inst) == id) {
-                    std::get<cache_element::RESPONSE>(inst) = rsp;
+		    //std::cout << "line: " << __LINE__ << " matched: " << id << std::endl; 
+                    //std::get<cache_element::RESPONSE>(inst) = rsp;
                     return(true);
                 }
                 return(false);
             });
+	    if(it != m_response_cache.end()) {
+                std::get<cache_element::RESPONSE>(*it).assign(rsp);
+	    }
         }
         void connected_client(client_connection st) {
-            m_connected_clients.insert(std::make_pair(handle(), st));
+            //m_connected_clients.insert(std::make_pair(handle(), st));
+            m_connected_clients[handle()] = st;
         }
 
         auto& connected_client() {
@@ -514,6 +523,7 @@ class TcpClient: public noor::NetInterface {
                 std::cout << "line: " << " key:" << ent.first << " Value:" << ent.second << std::endl; 
             }
             tcp_client_async(get_config().at("server-ip"), std::stoi(get_config().at("server-port")));
+	    std::cout << "line: " << __LINE__ << "handle: " << handle() << " client_connected: " << connected_client(handle()) << std::endl;
         }
         ~TcpClient() {}
         virtual std::int32_t onReceive(std::string in) override;
