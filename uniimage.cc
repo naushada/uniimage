@@ -615,6 +615,11 @@ std::int32_t noor::Uniimage::start_client() {
     } /* End of while loop */
 }
 
+/**
+ * @brief 
+ * 
+ * @return std::int32_t 
+ */
 std::int32_t noor::Uniimage::start_server() {
     //Read required Key's value from Data Store.
     int conn_id   = -1;
@@ -729,6 +734,13 @@ std::int32_t noor::Uniimage::start_server() {
 }
 
 //***************** UDP *******************
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param port 
+ * @return std::int32_t 
+ */
 std::int32_t noor::Uniimage::udp_client(const std::string& IP, std::uint16_t port) {
     //UDP Client .... 
     /* Set up the address we're going to bind to. */
@@ -757,6 +769,13 @@ std::int32_t noor::Uniimage::udp_client(const std::string& IP, std::uint16_t por
     return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param port 
+ * @return std::int32_t 
+ */
 std::int32_t noor::Uniimage::udp_server(const std::string& IP, std::uint16_t port) {
     //UDP Server .... 
     /* Set up the address we're going to bind to. */
@@ -794,6 +813,13 @@ std::int32_t noor::Uniimage::udp_server(const std::string& IP, std::uint16_t por
     return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @param channel 
+ * @param req 
+ * @return std::int32_t 
+ */
 std::int32_t noor::Uniimage::udp_tx(std::int32_t channel, const std::string& req) {
     std::int32_t offset = 0;
     std::int32_t payload_len = req.length();
@@ -819,6 +845,12 @@ std::int32_t noor::Uniimage::udp_tx(std::int32_t channel, const std::string& req
     return(offset);
 }
 
+/**
+ * @brief 
+ * 
+ * @param channel 
+ * @return std::string 
+ */
 std::string noor::Uniimage::udp_rx(std::int32_t channel) {
     std::array<char, 8> arr;
     arr.fill(0);
@@ -871,6 +903,13 @@ std::vector<struct option> options = {
     {"self-port",                 required_argument, 0, 'e'}
 };
 
+/**
+ * @brief 
+ * 
+ * @param argc 
+ * @param argv 
+ * @return int 
+ */
 int main(std::int32_t argc, char *argv[]) {
     std::int32_t c;
     std::int32_t option_index = 0;
@@ -1018,6 +1057,14 @@ std::int32_t noor::NetInterface::tcp_client_async(const std::string& IP, std::ui
     return(tcp_client(IP, PORT, true));
 }
 
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param PORT 
+ * @param isAsync 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::tcp_client(const std::string& IP, std::uint16_t PORT, bool isAsync) {
     /* Set up the address we're going to bind to. */
     bzero(&m_inet_server, sizeof(m_inet_server));
@@ -1084,6 +1131,13 @@ std::int32_t noor::NetInterface::tcp_client(const std::string& IP, std::uint16_t
     return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param PORT 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::udp_client(const std::string& IP, std::uint16_t PORT) {
     // UDP Client .... 
     bzero(&m_inet_server, sizeof(m_inet_server));
@@ -1111,6 +1165,12 @@ std::int32_t noor::NetInterface::udp_client(const std::string& IP, std::uint16_t
     return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @param PATH 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::uds_client(const std::string& PATH) {
     std::int32_t channel = -1;
     /* Set up the address we're going to bind to. */
@@ -1147,6 +1207,11 @@ std::int32_t noor::NetInterface::uds_client(const std::string& PATH) {
     return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @return noor::NetInterface::emp 
+ */
 noor::NetInterface::emp noor::NetInterface::uds_rx() {
     std::uint16_t command;
     std::uint16_t message_id;
@@ -1198,6 +1263,13 @@ noor::NetInterface::emp noor::NetInterface::uds_rx() {
     return(emp {});
 }
 
+/**
+ * @brief 
+ * 
+ * @param channel 
+ * @param data 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::tcp_rx(std::int32_t channel, std::string& data) {
     std::array<char, 8> arr;
     arr.fill(0);
@@ -1239,6 +1311,12 @@ std::int32_t noor::NetInterface::tcp_rx(std::int32_t channel, std::string& data)
 
 }
 
+/**
+ * @brief 
+ * 
+ * @param data 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
     std::array<char, 8> arr;
     arr.fill(0);
@@ -1279,6 +1357,12 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
     return(std::string().length());
 }
 
+/**
+ * @brief 
+ * 
+ * @param http 
+ * @return std::string 
+ */
 std::string noor::NetInterface::build_web_response(Http& http) {
     //Build HTTP Response
     std::cout << "URI: " << http.uri() << " method: " << http.method() << std::endl;
@@ -1297,6 +1381,13 @@ std::string noor::NetInterface::build_web_response(Http& http) {
     return(ss.str());
 }
 
+/**
+ * @brief 
+ * 
+ * @param channel 
+ * @param data 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::web_rx(std::int32_t channel, std::string& data) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << " handle:" << handle() <<std::endl;
     std::array<char, 2048> arr;
@@ -1358,6 +1449,12 @@ std::int32_t noor::NetInterface::web_rx(std::int32_t channel, std::string& data)
     return(std::string().length());
 }
 
+/**
+ * @brief 
+ * 
+ * @param data 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::web_rx(std::string& data) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << " handle:" << handle() <<std::endl;
     std::array<char, 2048> arr;
@@ -1419,6 +1516,12 @@ std::int32_t noor::NetInterface::web_rx(std::string& data) {
     return(std::string().length());  
 }
 
+/**
+ * @brief 
+ * 
+ * @param data 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::udp_rx(std::string& data) {
     std::array<char, 8> arr;
     arr.fill(0);
@@ -1462,6 +1565,13 @@ std::int32_t noor::NetInterface::udp_rx(std::string& data) {
     return(std::string().length());
 }
 
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param PORT 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::tcp_server(const std::string& IP, std::uint16_t PORT) {
    /* Set up the address we're going to bind to. */
     bzero(&m_inet_server, sizeof(m_inet_server));
@@ -1504,6 +1614,13 @@ std::int32_t noor::NetInterface::tcp_server(const std::string& IP, std::uint16_t
     return(0); 
 }
 
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param PORT 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::udp_server(const std::string& IP, std::uint16_t PORT) {
     // UDP Server .... 
     /* Set up the address we're going to bind to. */
@@ -1541,6 +1658,13 @@ std::int32_t noor::NetInterface::udp_server(const std::string& IP, std::uint16_t
     return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param PORT 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::web_server(const std::string& IP, std::uint16_t PORT) {
     /* Set up the address we're going to bind to. */
     bzero(&m_inet_server, sizeof(m_inet_server));
@@ -1583,7 +1707,13 @@ std::int32_t noor::NetInterface::web_server(const std::string& IP, std::uint16_t
     return(0); 
 }
 
-
+/**
+ * @brief 
+ * 
+ * @param channel 
+ * @param req 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::web_tx(std::int32_t channel, const std::string& req) {
     std::int32_t offset = 0;
     std::int32_t req_len = req.length();
@@ -1601,6 +1731,12 @@ std::int32_t noor::NetInterface::web_tx(std::int32_t channel, const std::string&
     return(offset);
 }
 
+/**
+ * @brief 
+ * 
+ * @param req 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::web_tx(const std::string& req) {
     std::int32_t offset = 0;
     std::int32_t req_len = req.length();
@@ -1618,6 +1754,12 @@ std::int32_t noor::NetInterface::web_tx(const std::string& req) {
     return(offset);
 }
 
+/**
+ * @brief 
+ * 
+ * @param req 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::udp_tx(const std::string& req) {
     std::int32_t offset = 0;
     std::int32_t payload_len = req.length();
@@ -1643,6 +1785,12 @@ std::int32_t noor::NetInterface::udp_tx(const std::string& req) {
     return(offset);
 }
 
+/**
+ * @brief 
+ * 
+ * @param req 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::uds_tx(const std::string& req) {
     std::int32_t offset = 0;
     std::int32_t req_len = req.length();
@@ -1667,6 +1815,12 @@ std::int32_t noor::NetInterface::uds_tx(const std::string& req) {
     return(offset);
 }
 
+/**
+ * @brief 
+ * 
+ * @param req 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::tcp_tx(const std::string& req) {
     std::int32_t offset = 0;
     std::int32_t req_len = req.length();
@@ -1691,6 +1845,13 @@ std::int32_t noor::NetInterface::tcp_tx(const std::string& req) {
     return(offset);
 }      
 
+/**
+ * @brief 
+ * 
+ * @param timeout_in_ms 
+ * @param intf_list 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<NetInterface>, socket_type>> intf_list) {
     int conns  = -1;
     fd_set fdList;
@@ -1792,10 +1953,10 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                             FD_ZERO(&fdWrite);
                             std::cout << "line: " << __LINE__ << " Connected to server handle: " << inst->handle() << std::endl;
 
-			    auto it = std::find_if(intf_list.begin(), intf_list.end(), [&](const auto& ent) {
-			        auto type = std::get<1>(ent);
-			        return(noor::NetInterface::socket_type::UNIX == type);
-			    });
+                            auto it = std::find_if(intf_list.begin(), intf_list.end(), [&](const auto& ent) {
+                                auto type = std::get<1>(ent);
+                                return(noor::NetInterface::socket_type::UNIX == type);
+                            });
 
                             if(it!= intf_list.end() && !std::get<0>(*it)->response_cache().empty()) {
                                 for(const auto& ent: std::get<0>(*it)->response_cache()) {
@@ -1809,7 +1970,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                                         data.write (reinterpret_cast <char *>(&payload_len), sizeof(payload_len));
                                         data << payload;
                                         auto ret = inst->tcp_tx(payload);
-					std::cout << "line: " << __LINE__ << " sent to TCP Server data-length:"<< ret << std::endl;
+                                        std::cout << "line: " << __LINE__ << " sent to TCP Server data-length:"<< ret << std::endl;
                                     }
                                 }
                             }
@@ -1863,7 +2024,14 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
         }
     } /* End of while loop */
 }
- 
+
+/**
+ * @brief 
+ * 
+ * @param timeout_in_ms 
+ * @param intf_list 
+ * @return * std::int32_t 
+ */
 std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<noor::NetInterface>, noor::NetInterface::socket_type>> intf_list) {
     int conns   = -1;
     fd_set readFd;
@@ -1985,10 +2153,10 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
                                 auto it = inst->web_connections().erase(channel);
                             } else {
                                 std::cout << "line: " << __LINE__ << " Data WEB Server Received: " << request << std::endl;
-				Http http(request);
-				auto rsp = build_web_response(http);
-				auto ret = web_tx(channel, rsp);
-			    }
+                                Http http(request);
+                                auto rsp = build_web_response(http);
+                                auto ret = web_tx(channel, rsp);
+                            }
                         }
                     }
                 }
@@ -2013,6 +2181,14 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
     } /* End of while loop */
 }
 
+/**
+ * @brief 
+ * 
+ * @param cmd_type 
+ * @param cmd 
+ * @param req 
+ * @return std::string 
+ */
 std::string noor::NetInterface::serialise(noor::Uniimage::EMP_COMMAND_TYPE cmd_type, noor::Uniimage::EMP_COMMAND_ID cmd, const std::string& req) {
     cmd = (noor::Uniimage::EMP_COMMAND_ID)(((cmd_type & 0x3 ) << 12) | (cmd & 0xFFF));
 
@@ -2031,6 +2207,14 @@ std::string noor::NetInterface::serialise(noor::Uniimage::EMP_COMMAND_TYPE cmd_t
     return(data.str());
 }
 
+/**
+ * @brief 
+ * 
+ * @param prefix 
+ * @param fields 
+ * @param filter 
+ * @return std::string 
+ */
 std::string noor::NetInterface::packArguments(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter) {
     std::stringstream rsp("");
     std::string result("");
@@ -2083,6 +2267,14 @@ std::string noor::NetInterface::packArguments(const std::string& prefix, std::ve
     return(result);
 }
 
+/**
+ * @brief 
+ * 
+ * @param prefix 
+ * @param fields 
+ * @param filter 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::registerGetVariable(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter) {
     noor::Uniimage::EMP_COMMAND_TYPE cmd_type = noor::Uniimage::EMP_COMMAND_TYPE::Request;
     noor::Uniimage::EMP_COMMAND_ID cmd = noor::Uniimage::EMP_COMMAND_ID::RegisterGetVariable;
@@ -2097,6 +2289,12 @@ std::int32_t noor::NetInterface::registerGetVariable(const std::string& prefix, 
 
 }
 
+/**
+ * @brief 
+ * 
+ * @param prefix 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::getSingleVariable(const std::string& prefix) {
     noor::Uniimage::EMP_COMMAND_TYPE cmd_type = noor::Uniimage::EMP_COMMAND_TYPE::Request;
     noor::Uniimage::EMP_COMMAND_ID cmd = noor::Uniimage::EMP_COMMAND_ID::SingleGetVariable;
@@ -2110,6 +2308,14 @@ std::int32_t noor::NetInterface::getSingleVariable(const std::string& prefix) {
     return(ret);
 }
 
+/**
+ * @brief 
+ * 
+ * @param prefix 
+ * @param fields 
+ * @param filter 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::getVariable(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter) {
     noor::Uniimage::EMP_COMMAND_TYPE cmd_type = noor::Uniimage::EMP_COMMAND_TYPE::Request;
     noor::Uniimage::EMP_COMMAND_ID cmd = noor::Uniimage::EMP_COMMAND_ID::GetVariable;
@@ -2122,6 +2328,12 @@ std::int32_t noor::NetInterface::getVariable(const std::string& prefix, std::vec
     return(ret);
 }
 
+/**
+ * @brief 
+ * 
+ * @param in 
+ * @return std::int32_t 
+ */
 std::int32_t TcpClient::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
     return(0);
