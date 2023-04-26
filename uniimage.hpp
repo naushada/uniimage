@@ -34,7 +34,18 @@
 #include <getopt.h>
 #include <atomic>
 
+#include <bsoncxx/json.hpp>
+#include <bsoncxx/types.hpp>
+#include <bsoncxx/builder/stream/helpers.hpp>
+#include <bsoncxx/builder/stream/document.hpp>
+#include <bsoncxx/builder/stream/array.hpp>
+#include <bsoncxx/stdx/string_view.hpp>
+#include <bsoncxx/string/to_string.hpp>
+
+
 #include "http.hpp"
+
+std::uint32_t from_json_object_to_map(const std::string json_obj, std::unordered_map<std::string, std::string>& out);
 
 namespace noor {
     class Uniimage;

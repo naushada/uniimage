@@ -1038,6 +1038,10 @@ int main(std::int32_t argc, char *argv[]) {
         
         ent.push_back({std::make_unique<WebServer>(config), noor::NetInterface::socket_type::WEB});
 
+        std::unordered_map<std::string, std::string> out;
+        auto jArray = "{\"element\": [{\"key\":\"123456\", \"key1\":\"abcdefg\"}]}";
+        from_json_object_to_map(jArray, out);
+
         //ent.push_back({std::make_unique<UnixServer>(), noor::NetInterface::socket_type::UNIX});
         unimanage.start_server(100, std::move(ent));
     }
@@ -2403,5 +2407,64 @@ std::int32_t UnixServer::onClose(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
     return(0);
 }
+
+
+
+std::uint32_t from_json_element_to_string(const std::string json_obj, const std::string key, std::string& str_out)
+{
+
+  bsoncxx::document::value doc_val = bsoncxx::from_json(json_obj.c_str());
+  bsoncxx::document::view doc = doc_val.view();
+
+  auto it = doc.find(key);
+  if(it == doc.end()) {
+    std::cout << "line: " << __LINE__ << "key: " << key;
+    str_out.clear();
+    return(1);    
+  }
+
+  bsoncxx::document::element elm_value = *it;
+  if(elm_value && bsoncxx::type::k_utf8 == elm_value.type()) {
+      std::string elm(elm_value.get_utf8().value.data(), elm_value.get_utf8().value.length());
+      str_out.assign(elm);
+  } else {
+    str_out.clear();
+  }
+  
+  return(0);
+}
+
+std::uint32_t from_json_object_to_map(const std::string json_obj, std::unordered_map<std::string, std::string>& out)
+{
+    bsoncxx::document::value doc_val = bsoncxx::from_json(json_obj.c_str());
+    bsoncxx::document::view doc = doc_val.view();
+    auto key="element";
+    
+    auto it = doc.find(key);
+    if(it == doc.end()) {
+        std::cout << "line: " << __LINE__ << " key: " << key << std::endl;
+        return(1);    
+    }
+
+    bsoncxx::document::element elm_value = *it;
+
+    if(elm_value && bsoncxx::type::k_array == elm_value.type()) {
+        bsoncxx::array::view to(elm_value.get_array().value);
+        std::cout << "line: " << __LINE__ << " document type is array" << std::endl;
+        for(bsoncxx::array::element elm : to) {
+          if(bsoncxx::type::k_document == elm.type()) {
+            std::cout << "line: " << __LINE__ << " document type is document" << std::endl;
+            auto doc = elm.get_document().value;
+            auto it = doc.find("key");
+            if(it != doc.end()) {
+                std::cout << "line: " << __LINE__ << " value: " << doc["key"].get_utf8().value.data() << std::endl;
+            }
+          }
+        }
+    }
+  
+    return(0);
+}
+
 
 #endif /* __uniimage__cc__ */
