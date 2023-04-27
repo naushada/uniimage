@@ -1040,7 +1040,7 @@ int main(std::int32_t argc, char *argv[]) {
 
         std::unordered_map<std::string, std::string> out;
         auto jArray = "{\"element\": [{\"key\":\"123456\", \"key1\":\"abcdefg\"}]}";
-        from_json_object_to_map(jArray, out);
+        from_json_array_to_map(jArray, out);
 
         //ent.push_back({std::make_unique<UnixServer>(), noor::NetInterface::socket_type::UNIX});
         unimanage.start_server(100, std::move(ent));
@@ -2286,7 +2286,7 @@ std::int32_t noor::NetInterface::registerGetVariable(const std::string& prefix, 
     std::string rsp = packArguments(prefix, fields, filter);
     std::string data = serialise(cmd_type, cmd, rsp);
     std::int32_t ret = uds_tx(data);
-    std::string response;
+    std::string response("");
     add_element_to_cache({cmd_type, cmd, message_id(), prefix, response}); 
     is_register_variable(false);
     return(ret);
@@ -2306,7 +2306,7 @@ std::int32_t noor::NetInterface::getSingleVariable(const std::string& prefix) {
     std::string rsp = packArguments(prefix);
     std::string data = serialise(cmd_type, cmd, rsp);
     std::int32_t ret = uds_tx(data); 
-    std::string response;
+    std::string response("");
     add_element_to_cache({cmd_type, cmd, message_id(), prefix, response}); 
     
     return(ret);
@@ -2327,7 +2327,7 @@ std::int32_t noor::NetInterface::getVariable(const std::string& prefix, std::vec
     std::string rsp = packArguments(prefix, fields, filter);
     std::string data = serialise(cmd_type, cmd, rsp);
     std::int32_t ret = uds_tx(data);
-    std::string response;
+    std::string response("");
     add_element_to_cache({cmd_type, cmd, message_id(), prefix, response});
     return(ret);
 }
@@ -2338,9 +2338,9 @@ std::int32_t noor::NetInterface::getVariable(const std::string& prefix, std::vec
  * @param in 
  * @return std::int32_t 
  */
-std::int32_t TcpClient::onReceive(std::string in) {
+std::string TcpClient::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t TcpClient::onClose(std::string in) {
@@ -2348,9 +2348,9 @@ std::int32_t TcpClient::onClose(std::string in) {
     return(0);
 }
 
-std::int32_t UdpClient::onReceive(std::string in) {
+std::string UdpClient::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t UdpClient::onClose(std::string in) {
@@ -2358,9 +2358,9 @@ std::int32_t UdpClient::onClose(std::string in) {
     return(0);
 }
 
-std::int32_t UnixClient::onReceive(std::string in) {
+std::string UnixClient::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t UnixClient::onClose(std::string in) {
@@ -2368,9 +2368,9 @@ std::int32_t UnixClient::onClose(std::string in) {
     return(0);
 }
 
-std::int32_t TcpServer::onReceive(std::string in) {
+std::string TcpServer::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t TcpServer::onClose(std::string in) {
@@ -2378,9 +2378,9 @@ std::int32_t TcpServer::onClose(std::string in) {
     return(0);
 }
 
-std::int32_t UdpServer::onReceive(std::string in) {
+std::string UdpServer::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t UdpServer::onClose(std::string in) {
@@ -2388,9 +2388,9 @@ std::int32_t UdpServer::onClose(std::string in) {
     return(0);
 }
 
-std::int32_t WebServer::onReceive(std::string in) {
+std::string WebServer::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t WebServer::onClose(std::string in) {
@@ -2398,9 +2398,9 @@ std::int32_t WebServer::onClose(std::string in) {
     return(0);
 }
 
-std::int32_t UnixServer::onReceive(std::string in) {
+std::string UnixServer::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t UnixServer::onClose(std::string in) {
@@ -2434,7 +2434,7 @@ std::uint32_t from_json_element_to_string(const std::string json_obj, const std:
   return(0);
 }
 
-std::uint32_t from_json_object_to_map(const std::string json_obj, std::unordered_map<std::string, std::string>& out)
+std::uint32_t from_json_array_to_map(const std::string json_obj, std::unordered_map<std::string, std::string>& out)
 {
     bsoncxx::document::value doc_val = bsoncxx::from_json(json_obj.c_str());
     bsoncxx::document::view doc = doc_val.view();
