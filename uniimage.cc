@@ -1361,6 +1361,11 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
     return(std::string().length());
 }
 
+std::string noor::NetInterface::process_web_request(const std::string& req) {
+    
+    return(std::string());
+}
+
 /**
  * @brief 
  * 
@@ -1372,12 +1377,13 @@ std::string noor::NetInterface::build_web_response(Http& http) {
     std::cout << "URI: " << http.uri() << " method: " << http.method() << std::endl;
     std::stringstream ss("");
     std::string payload("<html><title></title><head></head><body><h2>Redirecting to http://10.20.129.111</h2></body></html>");
-    ss << "HTTP/1.1 301 Moved Permanently\r\n"
+    ss << "HTTP/1.1 302 Found\r\n"
        //<< "Location: https://192.168.1.1:443\r\n"
        << "Location: http://10.20.129.111\r\n"
        << "Content-length: " << payload.length() << "\r\n"
        << "Connection: close\r\n"
        //<< "Cookie: unity_token=IC3wWl66tT3XrqO88iLBSxCYbuxhPvGz; unity_login=admin; last_connection={\"success_last\":\"Sat Apr  8 03:47:22 2023\",\"success_from\":\"192.168.1.100\",\"failures\":0}" 
+       << "Cookie: " << value("Cookies")
        << "\r\n\r\n"
        << payload;
 

@@ -87,7 +87,7 @@ void noor::Http::parse_uri(const std::string& in)
       } else {
 
         auto resource_uri = first_line.substr(method().length() + 1, offset - ((method().length() + 1)));
-	std::cout << "line: " << __LINE__ << " resource_uri: " << resource_uri << std::endl;
+        std::cout << "line: " << __LINE__ << " resource_uri: " << resource_uri << std::endl;
         uri(resource_uri);
       }
     }
