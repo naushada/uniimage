@@ -2144,6 +2144,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
                                 auto it = inst->tcp_connections().erase(channel);
                             } else {
                                 std::cout << "line: " << __LINE__ << " Data TCP Server Received: " << request << std::endl;
+                                noor::CommonResponse::instance().response(channel, request);
                             }
                         }
                     }

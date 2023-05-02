@@ -51,6 +51,8 @@ std::uint32_t from_json_element_to_string(const std::string json_obj, const std:
 namespace noor {
     class Uniimage;
     class NetInterface;
+    class CommonResponse;
+
     struct response {
         std::uint16_t type;
         std::uint16_t command;
@@ -274,6 +276,28 @@ class noor::Uniimage {
         std::int32_t m_udp_client_fd;
         std::int32_t m_udp_server_fd;
         struct sockaddr_in m_self_addr;
+};
+
+class noor::CommonResponse {
+    public:
+        CommonResponse() = default;
+        ~CommonResponse() = default;
+
+        static auto& instance() {
+            return(m_inst);
+        }
+
+        auto response(std::int32_t fd) {
+            return(m_responses[fd]);
+        }
+
+        void response(std::int32_t fd, std::string rsp) {
+            m_responses[fd].push_back(rsp);
+        }
+
+    private:
+        static noor::CommonResponse m_inst;
+        std::unordered_map<std::int32_t, std::vector<std::string>> m_responses;
 };
 
 class noor::NetInterface {
