@@ -280,10 +280,11 @@ class noor::Uniimage {
 
 class noor::CommonResponse {
     public:
-        CommonResponse() = default;
+        
         ~CommonResponse() = default;
 
-        static auto& instance() {
+        static noor::CommonResponse& instance() {
+            static noor::CommonResponse m_inst;
             return(m_inst);
         }
 
@@ -296,7 +297,7 @@ class noor::CommonResponse {
         }
 
     private:
-        static noor::CommonResponse m_inst;
+        CommonResponse() = default;
         std::unordered_map<std::int32_t, std::vector<std::string>> m_responses;
 };
 
