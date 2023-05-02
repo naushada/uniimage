@@ -1361,8 +1361,43 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
     return(std::string().length());
 }
 
+std::string noor::NetInterface::handleGetMethod(const Http& http) {
+
+    if(!http.uri().compare("/api/v1/device/list")) {
+        //Provide the device's list to Webclient.
+        if(!noor::CommonResponse::instance().response().empty()) {
+            std::for_each(noor::CommonResponse::instance().response().begin(), noor::CommonResponse::instance().response().end(), [&](const auto& ent) {
+                std::for_each(ent.second.begin(), ent.second.end(), [&](const auto & elm) {
+
+                });
+
+            });
+        }
+    }
+    return(std::string());
+}
+
 std::string noor::NetInterface::process_web_request(const std::string& req) {
-    
+    Http http(req);
+    if(!http.method().compare("GET")) {
+        //handleGetRequest()
+        auto rsp = handleGetMethod(http);
+    }
+    else if(!http.method().compare("POST")) {
+        //handlePostMethod()
+    }
+    else if(!http.method().compare("PUT")) {
+        //handlePutMethod()
+    }
+    else if(!http.method().compare("OPTIONS")) {
+        //handleOptionsMethod()
+    }
+    else if(!http.method().compare("DELETE")) {
+        //handleDeleteMethod()
+    }
+    else {
+        //Error
+    }
     return(std::string());
 }
 
@@ -2165,7 +2200,8 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
                             } else {
                                 std::cout << "line: " << __LINE__ << " Data WEB Server Received: " << request << std::endl;
                                 Http http(request);
-                                auto rsp = build_web_response(http);
+                                //auto rsp = build_web_response(http);
+                                auto rsp = process_web_request(request);
                                 auto ret = web_tx(channel, rsp);
                             }
                         }

@@ -295,6 +295,9 @@ class noor::CommonResponse {
         void response(std::int32_t fd, std::string rsp) {
             m_responses[fd].push_back(rsp);
         }
+        auto& response() {
+            return(m_responses);
+        }
 
     private:
         CommonResponse() = default;
@@ -411,6 +414,7 @@ class noor::NetInterface {
         std::int32_t getVariable(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
         std::string build_web_response(Http& http);
         std::string process_web_request(const std::string& req);
+        std::string handleGetMethod(const Http& http);
 
         virtual std::string onReceive(std::string in) {
             std::cout << "line: " << __LINE__ << "Must be overriden " << std::endl;
