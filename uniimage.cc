@@ -1363,16 +1363,22 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
 
 std::string noor::NetInterface::handleGetMethod(const Http& http) {
 
+    std::stringstream ss("");
     if(!http.uri().compare("/api/v1/device/list")) {
         //Provide the device's list to Webclient.
         if(!noor::CommonResponse::instance().response().empty()) {
+            ss << "{["
             std::for_each(noor::CommonResponse::instance().response().begin(), noor::CommonResponse::instance().response().end(), [&](const auto& ent) {
+                ss << "{\"response\": {";
                 std::for_each(ent.second.begin(), ent.second.end(), [&](const auto & elm) {
-
+                    ss << elm << ",";
                 });
-
+                ss << "}},";
             });
+            ss << "]}";
         }
+
+        return(ss.str());
     }
     return(std::string());
 }
