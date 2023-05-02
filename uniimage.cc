@@ -1383,7 +1383,7 @@ std::string noor::NetInterface::build_web_response(Http& http) {
        << "Content-length: " << payload.length() << "\r\n"
        << "Connection: close\r\n"
        //<< "Cookie: unity_token=IC3wWl66tT3XrqO88iLBSxCYbuxhPvGz; unity_login=admin; last_connection={\"success_last\":\"Sat Apr  8 03:47:22 2023\",\"success_from\":\"192.168.1.100\",\"failures\":0}" 
-       << "Cookie: " << value("Cookies")
+       << "Cookie: " << http.value("Cookies")
        << "\r\n\r\n"
        << payload;
 
