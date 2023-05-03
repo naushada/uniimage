@@ -416,6 +416,7 @@ class noor::NetInterface {
         std::string process_web_request(const std::string& req);
         std::string handleGetMethod(const Http& http);
         std::string buildHttpResponse(Http& http, const std::string& rsp_body);
+        std::string handleOptionsMethod(Http& http);
 
         virtual std::string onReceive(std::string in) {
             std::cout << "line: " << __LINE__ << "Must be overriden " << std::endl;

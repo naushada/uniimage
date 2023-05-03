@@ -1374,10 +1374,23 @@ std::string noor::NetInterface::buildHttpResponse(Http& http, const std::string&
     return(ss.str());
 }
 
+std::string noor::NetInterface::handleOptionsMethod(Http& http) {
+    std::stringstream http_header("");
+    http_header << "HTTP/1.1 200 OK\r\n";
+    http_header << "Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE\r\n";
+    http_header << "Access-Control-Allow-Headers: DNT, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Range\r\n";
+    http_header << "Access-Control-Max-Age: 1728000\r\n";
+    http_header << "Access-Control-Allow-Origin: *\r\n";
+    http_header << "Content-Type: text/plain; charset=utf-8\r\n";
+    http_header << "Content-Length: 0\r\n";
+    http_header << "\r\n";
+
+    return(http_header.str());
+}
 std::string noor::NetInterface::handleGetMethod(const Http& http) {
 
     std::stringstream ss("");
-    if(!http.uri().compare(0, 19, "/api/v1/device/list") || !http.uri().compare(0, 2, " /")) {
+    if(!http.uri().compare(0, 20, " /api/v1/device/list") || !http.uri().compare(0, 2, " /")) {
         //Provide the device's list to Webclient.
         if(!noor::CommonResponse::instance().response().empty()) {
             ss << "[";
@@ -1395,6 +1408,8 @@ std::string noor::NetInterface::handleGetMethod(const Http& http) {
             ss << "]";
         }
         return(ss.str());
+    } else if(!http.uri().compare(0, 18, " /api/v1/device/ui")) {
+
     }
     return(std::string());
 }
@@ -1416,7 +1431,7 @@ std::string noor::NetInterface::process_web_request(const std::string& req) {
         //handlePutMethod()
     }
     else if(!http.method().compare("OPTIONS")) {
-        //handleOptionsMethod()
+        return(handleOptionsMethod(http));
     }
     else if(!http.method().compare("DELETE")) {
         //handleDeleteMethod()
