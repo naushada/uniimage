@@ -1367,15 +1367,16 @@ std::string noor::NetInterface::handleGetMethod(const Http& http) {
     if(!http.uri().compare("/api/v1/device/list")) {
         //Provide the device's list to Webclient.
         if(!noor::CommonResponse::instance().response().empty()) {
-            ss << "{["
+            ss << "["
             std::for_each(noor::CommonResponse::instance().response().begin(), noor::CommonResponse::instance().response().end(), [&](const auto& ent) {
-                ss << "{\"response\": {";
+                ss << "[";
                 std::for_each(ent.second.begin(), ent.second.end(), [&](const auto & elm) {
                     ss << elm << ",";
                 });
-                ss << "}},";
+                //get rid of last ',' from above array now.
+                ss << "]";
             });
-            ss << "]}";
+            ss << "]";
         }
 
         return(ss.str());
