@@ -1374,7 +1374,7 @@ std::string noor::NetInterface::handleGetMethod(const Http& http) {
                     ss << elm << ",";
                 });
                 //get rid of last ',' from above array now.
-                ss << "]";
+                ss << "],";
             });
             ss << "]";
         }
