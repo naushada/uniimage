@@ -1361,24 +1361,39 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
     return(std::string().length());
 }
 
+std::string noor::NetInterface::buildHttpResponse(Http& http, const std::string& rsp_body) {
+    std::stringstream ss("");
+    ss << "HTTP/1.1 200 OK\r\n"
+       << "Host: " << http.value("Host") << "\r\n"
+       << "Connection: " << http.value("Connection") << "\r\n"
+       << "Content-Type: application/json" << "\r\n"
+       << "Content-Length: " << rsp_body.length() << "\r\n"
+       << "\r\n"
+       << rsp_body;
+
+    return(ss.str());
+}
+
 std::string noor::NetInterface::handleGetMethod(const Http& http) {
 
     std::stringstream ss("");
-    if(!http.uri().compare("/api/v1/device/list")) {
+    if(!http.uri().compare(0, 19, "/api/v1/device/list") || !http.uri().compare(0, 2, " /")) {
         //Provide the device's list to Webclient.
         if(!noor::CommonResponse::instance().response().empty()) {
-            ss << "["
+            ss << "[";
             std::for_each(noor::CommonResponse::instance().response().begin(), noor::CommonResponse::instance().response().end(), [&](const auto& ent) {
                 ss << "[";
                 std::for_each(ent.second.begin(), ent.second.end(), [&](const auto & elm) {
                     ss << elm << ",";
                 });
                 //get rid of last ',' from above array now.
+                ss.seekp(-1, std::ios_base::end);
                 ss << "],";
             });
+            //get rid of last ','.
+            ss.seekp(-1, std::ios_base::end);
             ss << "]";
         }
-
         return(ss.str());
     }
     return(std::string());
@@ -1388,7 +1403,11 @@ std::string noor::NetInterface::process_web_request(const std::string& req) {
     Http http(req);
     if(!http.method().compare("GET")) {
         //handleGetRequest()
-        auto rsp = handleGetMethod(http);
+        auto rsp_body = handleGetMethod(http);
+        if(rsp_body.length()) {
+            auto rsp = buildHttpResponse(http, rsp_body);
+            return(rsp);
+        }
     }
     else if(!http.method().compare("POST")) {
         //handlePostMethod()
@@ -2209,7 +2228,9 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
                                 Http http(request);
                                 //auto rsp = build_web_response(http);
                                 auto rsp = process_web_request(request);
-                                auto ret = web_tx(channel, rsp);
+                                if(rsp.length()) {
+                                    auto ret = web_tx(channel, rsp);
+                                }
                             }
                         }
                     }
