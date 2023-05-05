@@ -1361,13 +1361,48 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
     return(std::string().length());
 }
 
+std::string noor::NetInterface::buildHttpRedirectResponse(Http& http, std::string rsp_body) {
+    std::stringstream ss("");
+    if(!rsp_body.length()) {
+        rsp_body.assign("<html><title></title><head></head><body><h2>Redirecting to http://10.20.129.111</h2></body></html>");
+    }
+
+    ss << "HTTP/1.1 301 FOUND\r\n"
+       << "Host: " << http.value("Host") << "\r\n"
+       << "Connection: " << http.value("Connection") << "\r\n"
+       << "Content-Type: text/html" << "\r\n"
+       << "Content-Length: " << rsp_body.length() << "\r\n";
+    
+    if(!http.value("Origin").length()) {
+        ss << "Access-Control-Allow-Origin: *\r\n";
+    } else {
+        ss << "Access-Control-Allow-Origin: "
+           << http.value("Origin")
+           << "\r\n";
+    }
+
+    ss << "\r\n"
+       << rsp_body;
+
+    return(ss.str());
+}
+
 std::string noor::NetInterface::buildHttpResponse(Http& http, const std::string& rsp_body) {
     std::stringstream ss("");
     ss << "HTTP/1.1 200 OK\r\n"
        << "Host: " << http.value("Host") << "\r\n"
        << "Connection: " << http.value("Connection") << "\r\n"
-       << "Content-Type: application/json" << "\r\n"
-       << "Content-Length: " << rsp_body.length() << "\r\n"
+       << "Content-Type: application/json" << "\r\n";
+
+    if(!http.value("Origin").length()) {
+        ss << "Access-Control-Allow-Origin: *\r\n";
+    } else {
+        ss << "Access-Control-Allow-Origin: "
+           << http.value("Origin")
+           << "\r\n";
+    }
+
+    ss << "Content-Length: " << rsp_body.length() << "\r\n"
        << "\r\n"
        << rsp_body;
 
@@ -1380,14 +1415,22 @@ std::string noor::NetInterface::handleOptionsMethod(Http& http) {
     http_header << "Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE\r\n";
     http_header << "Access-Control-Allow-Headers: DNT, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Range\r\n";
     http_header << "Access-Control-Max-Age: 1728000\r\n";
-    http_header << "Access-Control-Allow-Origin: *\r\n";
+
+    if(!http.value("Origin").length()) {
+        http_header << "Access-Control-Allow-Origin: *\r\n";
+    } else {
+        http_header << "Access-Control-Allow-Origin: "
+           << http.value("Origin")
+           << "\r\n";
+    }
+    
     http_header << "Content-Type: text/plain; charset=utf-8\r\n";
     http_header << "Content-Length: 0\r\n";
     http_header << "\r\n";
 
     return(http_header.str());
 }
-std::string noor::NetInterface::handleGetMethod(const Http& http) {
+std::string noor::NetInterface::handleGetMethod(Http& http) {
 
     std::stringstream ss("");
     if(!http.uri().compare(0, 20, " /api/v1/device/list") || !http.uri().compare(0, 2, " /")) {
@@ -1407,10 +1450,16 @@ std::string noor::NetInterface::handleGetMethod(const Http& http) {
             ss.seekp(-1, std::ios_base::end);
             ss << "]";
         }
-        return(ss.str());
-    } else if(!http.uri().compare(0, 18, " /api/v1/device/ui")) {
 
+        auto rsp = buildHttpResponse(http, ss.str());
+        return(rsp);
+
+    } else if(!http.uri().compare(0, 17, "/api/v1/device/ui")) {
+        return(buildHttpRedirectResponse(http));
+    } else if(0) {
+        //
     }
+
     return(std::string());
 }
 
@@ -1419,10 +1468,12 @@ std::string noor::NetInterface::process_web_request(const std::string& req) {
     if(!http.method().compare("GET")) {
         //handleGetRequest()
         auto rsp_body = handleGetMethod(http);
+        return(rsp_body);
+        /*
         if(rsp_body.length()) {
             auto rsp = buildHttpResponse(http, rsp_body);
             return(rsp);
-        }
+        }*/
     }
     else if(!http.method().compare("POST")) {
         //handlePostMethod()

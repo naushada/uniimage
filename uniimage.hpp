@@ -414,9 +414,10 @@ class noor::NetInterface {
         std::int32_t getVariable(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
         std::string build_web_response(Http& http);
         std::string process_web_request(const std::string& req);
-        std::string handleGetMethod(const Http& http);
+        std::string handleGetMethod(Http& http);
         std::string buildHttpResponse(Http& http, const std::string& rsp_body);
         std::string handleOptionsMethod(Http& http);
+        std::string buildHttpRedirectResponse(Http& http, std::string rsp_body = "");
 
         virtual std::string onReceive(std::string in) {
             std::cout << "line: " << __LINE__ << "Must be overriden " << std::endl;
@@ -604,8 +605,17 @@ class UdpClient: public noor::NetInterface {
 class TcpServer: public noor::NetInterface {
     public:
         TcpServer(auto config) : NetInterface(config) {
-            tcp_server(get_config().at("server-ip"), std::stoi(get_config().at("server-port")));
+
+            std::string sIP("127.0.0.1");
+            auto it = std::find_if(get_config().begin(), get_config().end(), [] (const auto& ent) {return(!ent.first.compare("server-ip"));});
+
+            if(it != get_config().end()) {
+                sIP.assign(it->second);
+            }
+
+            tcp_server(sIP, std::stoi(get_config().at("server-port")));
         }
+
         ~TcpServer() {}
         virtual std::string onReceive(std::string in) override;
         virtual std::int32_t onClose(std::string in) override;
@@ -626,7 +636,15 @@ class UdpServer: public noor::NetInterface {
 class WebServer: public noor::NetInterface {
     public:
         WebServer(auto config) : NetInterface(config) {
-            web_server(get_config().at("server-ip"), std::stoi(get_config().at("web-port")));
+
+            std::string sIP("127.0.0.1");
+            auto it = std::find_if(get_config().begin(), get_config().end(), [] (const auto& ent) {return(!ent.first.compare("server-ip"));});
+
+            if(it != get_config().end()) {
+                sIP.assign(it->second);
+            }
+
+            web_server(sIP, std::stoi(get_config().at("web-port")));
         }
         ~WebServer() {}
 
