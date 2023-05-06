@@ -1635,7 +1635,7 @@ std::string noor::NetInterface::build_web_response(Http& http) {
  * @return std::int32_t 
  */
 std::int32_t noor::NetInterface::web_rx(std::int32_t channel, std::string& data) {
-    std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << " handle:" << handle() <<std::endl;
+    std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << " handle:" << channel <<std::endl;
     std::array<char, 2048> arr;
     arr.fill(0);
     std::int32_t len = -1;
@@ -1644,7 +1644,7 @@ std::int32_t noor::NetInterface::web_rx(std::int32_t channel, std::string& data)
         std::cout << "function: "<<__FUNCTION__ << " line: " << __LINE__ << " closed" << std::endl;
     } else if(len > 0) {
         std::string ss(arr.data(), len);
-        std::cout << "HTTP: " << std::endl << ss << std::endl;
+        std::cout << "HTTP:" << std::endl << ss << std::endl;
         Http http(ss);
         std::cout << "line: " << __LINE__ << " URI: "   << http.uri()    << std::endl;
         std::cout << "line: " << __LINE__ << " Header " << http.header() << std::endl;
