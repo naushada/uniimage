@@ -1546,6 +1546,8 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
               ss << ifs.rdbuf();
               ifs.close();
               return(buildHttpResponseOK(http, ss.str(), cntType));
+          } {
+            std::cout << "line: " << __LINE__ << "couldn't open the file: " << newFile << std::endl; 
           }
         }
     } else if(!http.uri().compare(0, 9, " /assets/")) {
@@ -1569,6 +1571,8 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
               ifs.close();
 
               return(buildHttpResponseOK(http, ss.str(), cntType));
+          } else {
+            std::cout << "line: " << __LINE__ << "couldn't open the file: " << newFile << std::endl;
           }
         }
 
@@ -1585,6 +1589,8 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
             ifs.close();
 
             return(buildHttpResponseOK(http, ss.str(), cntType));
+        } else {
+            std::cout << "line: " << __LINE__ << "couldn't open the file: " << newFile << std::endl;
         }
     } else if(!http.uri().compare(0, 2, " /")) {
         std::cout <<"line: " << __LINE__ << " processing index.html file " << std::endl;
@@ -1600,6 +1606,8 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
             ifs.close();
 
             return(buildHttpResponseOK(http, ss.str(), cntType));
+        } else {
+            std::cout << "line: " << __LINE__ << "couldn't open the file: " << newFile << std::endl;
         }
     }
 
