@@ -1556,7 +1556,7 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
         std::size_t found = http.uri().find_last_of(".");
         if(found != std::string::npos) {
           ext = http.uri().substr((found + 1), (http.uri().length() - found));
-          std::string newFile = "../webgui/webui" + http.uri();
+          std::string newFile = "../webgui/swi" + http.uri();
           /* Open the index.html file and send it to web browser. */
           std::ifstream ifs(newFile.c_str(), std::ios::binary);
           std::stringstream ss("");
@@ -1572,8 +1572,8 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
           }
         }
 
-    } else if((!http.uri().compare(0, 7, "/webui/"))) {
-        std::string newFile = "../webgui/webui/index.html";
+    } else if((!http.uri().compare(0, 7, "/swi/"))) {
+        std::string newFile = "../webgui/swi/index.html";
         /* Open the index.html file and send it to web browser. */
         std::ifstream ifs(newFile.c_str(), std::ios::binary);
         std::stringstream ss("");
@@ -1588,7 +1588,7 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
         }
     } else if(!http.uri().compare(0, 2, " /")) {
         std::cout <<"line: " << __LINE__ << " processing index.html file " << std::endl;
-        std::string newFile = "../webgui/webui/index.html";
+        std::string newFile = "../webgui/swi/index.html";
         /* Open the index.html file and send it to web browser. */
         std::ifstream ifs(newFile.c_str(), std::ios::binary);
         std::stringstream ss("");
