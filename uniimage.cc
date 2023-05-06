@@ -1522,10 +1522,10 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
         auto rsp = buildHttpResponse(http, ss.str());
         return(rsp);
 
-    } else if(!http.uri().compare(0, 17, "/api/v1/device/ui")) {
+    } else if(!http.uri().compare(0, 18, " /api/v1/device/ui")) {
         return(buildHttpRedirectResponse(http));
 
-    } else if((!http.uri().compare(0, 7, "/webui/"))) {
+    } else if((!http.uri().compare(0, 8, " /webui/"))) {
         /* build the file name now */
         std::string fileName("");
         std::string ext("");
@@ -1548,7 +1548,7 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
               return(buildHttpResponseOK(http, ss.str(), cntType));
           }
         }
-    } else if(!http.uri().compare(0, 8, "/assets/")) {
+    } else if(!http.uri().compare(0, 9, " /assets/")) {
         /* build the file name now */
         std::string fileName("");
         std::string ext("");
@@ -1572,7 +1572,7 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
           }
         }
 
-    } else if((!http.uri().compare(0, 7, "/swi/"))) {
+    } else if((!http.uri().compare(0, 6, " /swi/"))) {
         std::string newFile = "../webgui/swi/index.html";
         /* Open the index.html file and send it to web browser. */
         std::ifstream ifs(newFile.c_str(), std::ios::binary);
