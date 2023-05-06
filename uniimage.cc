@@ -1038,9 +1038,9 @@ int main(std::int32_t argc, char *argv[]) {
         
         ent.push_back({std::make_unique<WebServer>(config), noor::NetInterface::socket_type::WEB});
 
-        std::unordered_map<std::string, std::string> out;
-        auto jArray = "{\"element\": [{\"key\":\"123456\", \"key1\":\"abcdefg\"}]}";
-        from_json_array_to_map(jArray, out);
+        //std::unordered_map<std::string, std::string> out;
+        //auto jArray = "{\"element\": [{\"key\":\"123456\", \"key1\":\"abcdefg\"}]}";
+        //from_json_array_to_map(jArray, out);
 
         //ent.push_back({std::make_unique<UnixServer>(), noor::NetInterface::socket_type::UNIX});
         unimanage.start_server(100, std::move(ent));
@@ -1714,7 +1714,11 @@ std::int32_t noor::NetInterface::tcp_server(const std::string& IP, std::uint16_t
     bzero(&m_inet_server, sizeof(m_inet_server));
     m_inet_server.sin_family = AF_INET;
     m_inet_server.sin_port = htons(PORT);
-    m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+    if(!IP.compare("127.0.0.1")) {
+        m_inet_server.sin_addr.s_addr = INADDR_ANY;    
+    } else {
+        m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+    }
     memset(m_inet_server.sin_zero, 0, sizeof(m_inet_server.sin_zero));
     auto len = sizeof(m_inet_server);
 
@@ -1807,7 +1811,13 @@ std::int32_t noor::NetInterface::web_server(const std::string& IP, std::uint16_t
     bzero(&m_inet_server, sizeof(m_inet_server));
     m_inet_server.sin_family = AF_INET;
     m_inet_server.sin_port = htons(PORT);
-    m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+
+    if(!IP.compare("127.0.0.1")) {
+        m_inet_server.sin_addr.s_addr = INADDR_ANY;    
+    } else {
+        m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+    }
+
     memset(m_inet_server.sin_zero, 0, sizeof(m_inet_server.sin_zero));
     auto len = sizeof(m_inet_server);
 
