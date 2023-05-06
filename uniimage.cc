@@ -1457,6 +1457,13 @@ std::string noor::NetInterface::buildHttpRedirectResponse(Http& http, std::strin
 
 std::string noor::NetInterface::buildHttpResponse(Http& http, const std::string& rsp_body) {
     std::stringstream ss("");
+    if(!rsp_body.length()) {
+        ss << "HTTP/1.1 200 OK\r\n"
+           << "Connection: close" 
+           << "Content-Length: 0\r\n";
+       return(ss.str());
+    }
+
     ss << "HTTP/1.1 200 OK\r\n"
        << "Host: " << http.value("Host") << "\r\n"
        << "Connection: " << http.value("Connection") << "\r\n"
@@ -1517,6 +1524,9 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
             //get rid of last ','.
             ss.seekp(-1, std::ios_base::end);
             ss << "]";
+        } else {
+            //Test Data ---
+            ss << "[[{\"device.machine\": \"lexus-medium\", \"device.provisioning.serial\":\"A1234\", \"net.interface[w1].ipv4.address\": \"192.168.0.140\"}]]";
         }
 
         auto rsp = buildHttpResponse(http, ss.str());
@@ -1525,6 +1535,9 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
     } else if(!http.uri().compare(0, 17, "/api/v1/device/ui")) {
         return(buildHttpRedirectResponse(http));
 
+    } else if(!http.uri().compare(0, 21, "/api/v1/shell/command")) {
+        //Sheel command to be executed
+        http.dump();
     } else if((!http.uri().compare(0, 7, "/webui/"))) {
         /* build the file name now */
         std::string fileName("");
