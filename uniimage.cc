@@ -1547,7 +1547,7 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
               ifs.close();
               return(buildHttpResponseOK(http, ss.str(), cntType));
           } {
-            std::cout << "line: " << __LINE__ << "couldn't open the file: " << newFile << std::endl; 
+            std::cout << "line: " << __LINE__ << " couldn't open the file: " << newFile << std::endl; 
           }
         }
     } else if(!http.uri().compare(0, 9, " /assets/")) {
