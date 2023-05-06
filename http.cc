@@ -159,7 +159,7 @@ std::string noor::Http::get_header(const std::string& in)
   auto offset = in.find_last_of("\r\n\r\n", in.length(), 4);
   if(std::string::npos != offset) {
     header = in.substr(0, offset);
-    std::cout << "line: " << __LINE__ << " HTTP Header " << header << std::endl;
+    //std::cout << "line: " << __LINE__ << " HTTP Header " << header << std::endl;
     return(header);
   }
   

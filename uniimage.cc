@@ -1550,48 +1550,6 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
             std::cout << "line: " << __LINE__ << " couldn't open the file: " << newFile << std::endl; 
           }
         }
-    } else if(!http.uri().compare(0, 8, "/assets/")) {
-        /* build the file name now */
-        std::string fileName("");
-        std::string ext("");
-
-        std::size_t found = http.uri().find_last_of(".");
-        if(found != std::string::npos) {
-          ext = http.uri().substr((found + 1), (http.uri().length() - found));
-          std::string newFile = "../webgui/swi" + http.uri();
-          /* Open the index.html file and send it to web browser. */
-          std::ifstream ifs(newFile.c_str(), std::ios::binary);
-          std::stringstream ss("");
-          std::string cntType("");
-
-          if(ifs.is_open()) {
-
-              cntType = get_contentType(ext);
-              ss << ifs.rdbuf();
-              ifs.close();
-
-              return(buildHttpResponseOK(http, ss.str(), cntType));
-          } else {
-            std::cout << "line: " << __LINE__ << "couldn't open the file: " << newFile << std::endl;
-          }
-        }
-
-    } else if((!http.uri().compare(0, 5, "/swi/"))) {
-        std::string newFile = "../webgui/swi/index.html";
-        /* Open the index.html file and send it to web browser. */
-        std::ifstream ifs(newFile.c_str(), std::ios::binary);
-        std::stringstream ss("");
-        std::string cntType("");
-
-        if(ifs.is_open()) {
-            cntType = "text/html";
-            ss << ifs.rdbuf();
-            ifs.close();
-
-            return(buildHttpResponseOK(http, ss.str(), cntType));
-        } else {
-            std::cout << "line: " << __LINE__ << " couldn't open the file: " << newFile << std::endl;
-        }
     } else if(!http.uri().compare(0, 1, "/")) {
         std::cout <<"line: " << __LINE__ << " processing index.html file " << std::endl;
         std::string newFile = "../webgui/swi/index.html";
@@ -2443,15 +2401,14 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
                         if(channel > 0 && FD_ISSET(channel, &readFd)) {
                             //From Web Client 
                             std::string request("");
-                            std::cout <<"line: " << __LINE__ << " Request from Web client received on channel "<< channel << std::endl;
                             auto req = inst->web_rx(channel, request);
                             if(!req) {
-                                std::cout << "line: " << __LINE__ << " req.length: " << request.length() <<std::endl; 
+                                std::cout << "line: " << __LINE__ << " req.length: " << request.length() << " channel: " << channel <<std::endl; 
                                 //client is closed now 
                                 ::close(channel);
                                 auto it = inst->web_connections().erase(channel);
                             } else {
-                                std::cout << "line: " << __LINE__ << " Data WEB Server Received: " << request << std::endl;
+                                std::cout << "line: " << __LINE__ << " Request from Web client channel: " << channel <<" Received: " << request << std::endl;
                                 Http http(request);
                                 //auto rsp = build_web_response(http);
                                 auto rsp = process_web_request(request);
