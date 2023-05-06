@@ -1,9 +1,31 @@
 #ifndef __uniimage__cc__
 #define __uniimage__cc__
 
+/**
+ * @file uniimage.cc
+ * @author your name (you@domain.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-05-06
+ * 
+ * @copyright Copyright (c) 2023
+ *
+ _   _ _ __ (_|_)_ __ ___   __ _  __ _  ___ 
+| | | | '_ \| | | '_ ` _ \ / _` |/ _` |/ _ \
+| |_| | | | | | | | | | | | (_| | (_| |  __/
+ \__,_|_| |_|_|_|_| |_| |_|\__,_|\__, |\___|
+                                 |___/     
+ */
+
 #include "uniimage.hpp"
 #include "http.hpp"
-
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param PORT 
+ * @return std::int32_t 
+ */
 std::int32_t noor::Uniimage::web_server(const std::string& IP, std::uint16_t PORT) {
     /* Set up the address we're going to bind to. */
     bzero(&m_web_server, sizeof(m_web_server));
@@ -1538,6 +1560,25 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
     } else if(!http.uri().compare(0, 21, "/api/v1/shell/command")) {
         //Sheel command to be executed
         http.dump();
+        auto serialNumber = http.value("serialNo");
+        auto command = http.value("command");
+        auto IP = http.value("ipAddress");
+
+        if(!command.length()) {
+            return(buildHttpResponse(http, ""));
+        }
+
+        //Find the TCP Client Fd for sending the command.
+        if(!tcp_connections().empty()) {
+            auto it = std::find_if(tcp_connections().begin(), tcp_connections().end(), [&](const auto& ent) -> bool {
+                return(IP.length() && IP == std::get<1>(ent.second));
+            });
+            if(it != tcp_connections().end()) {
+                auto connFd = it->first;
+                //auto ret = tcp_tx(connFd, command);
+            }
+        }
+
     } else if((!http.uri().compare(0, 7, "/webui/"))) {
         /* build the file name now */
         std::string fileName("");
