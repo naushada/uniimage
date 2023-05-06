@@ -1501,7 +1501,7 @@ std::string noor::NetInterface::handleOptionsMethod(Http& http) {
 std::string noor::NetInterface::handleGetMethod(Http& http) {
 
     std::stringstream ss("");
-    if(!http.uri().compare(0, 20, " /api/v1/device/list")) {
+    if(!http.uri().compare(0, 19, "/api/v1/device/list")) {
         //Provide the device's list to Webclient.
         if(!noor::CommonResponse::instance().response().empty()) {
             ss << "[";
@@ -1522,10 +1522,10 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
         auto rsp = buildHttpResponse(http, ss.str());
         return(rsp);
 
-    } else if(!http.uri().compare(0, 18, " /api/v1/device/ui")) {
+    } else if(!http.uri().compare(0, 17, "/api/v1/device/ui")) {
         return(buildHttpRedirectResponse(http));
 
-    } else if((!http.uri().compare(0, 8, " /webui/"))) {
+    } else if((!http.uri().compare(0, 7, "/webui/"))) {
         /* build the file name now */
         std::string fileName("");
         std::string ext("");
@@ -1534,7 +1534,7 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
         if(found != std::string::npos) {
           ext = http.uri().substr((found + 1), (http.uri().length() - found));
           fileName = http.uri().substr(6, (http.uri().length() - 6));
-          std::string newFile = "../webgui/webui/" + fileName;
+          std::string newFile = "../webgui/swi/" + fileName;
           /* Open the index.html file and send it to web browser. */
           std::ifstream ifs(newFile.c_str());
           std::stringstream ss("");
@@ -1550,7 +1550,7 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
             std::cout << "line: " << __LINE__ << " couldn't open the file: " << newFile << std::endl; 
           }
         }
-    } else if(!http.uri().compare(0, 9, " /assets/")) {
+    } else if(!http.uri().compare(0, 8, "/assets/")) {
         /* build the file name now */
         std::string fileName("");
         std::string ext("");
@@ -1576,7 +1576,7 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
           }
         }
 
-    } else if((!http.uri().compare(0, 6, " /swi/"))) {
+    } else if((!http.uri().compare(0, 5, "/swi/"))) {
         std::string newFile = "../webgui/swi/index.html";
         /* Open the index.html file and send it to web browser. */
         std::ifstream ifs(newFile.c_str(), std::ios::binary);
@@ -1590,9 +1590,9 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
 
             return(buildHttpResponseOK(http, ss.str(), cntType));
         } else {
-            std::cout << "line: " << __LINE__ << "couldn't open the file: " << newFile << std::endl;
+            std::cout << "line: " << __LINE__ << " couldn't open the file: " << newFile << std::endl;
         }
-    } else if(!http.uri().compare(0, 2, " /")) {
+    } else if(!http.uri().compare(0, 1, "/")) {
         std::cout <<"line: " << __LINE__ << " processing index.html file " << std::endl;
         std::string newFile = "../webgui/swi/index.html";
         /* Open the index.html file and send it to web browser. */
@@ -1607,7 +1607,7 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
 
             return(buildHttpResponseOK(http, ss.str(), cntType));
         } else {
-            std::cout << "line: " << __LINE__ << "couldn't open the file: " << newFile << std::endl;
+            std::cout << "line: " << __LINE__ << " couldn't open the file: " << newFile << std::endl;
         }
     }
 

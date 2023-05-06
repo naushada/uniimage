@@ -78,7 +78,7 @@ void noor::Http::parse_uri(const std::string& in)
         offset = first_line.find_last_of(" ");
 
         if(std::string::npos != offset) {
-          auto resource_uri = first_line.substr(method().length() , offset - method().length());
+          auto resource_uri = first_line.substr(method().length()+1 , (offset - method().length() -1));
           std::cout << "line: " << __LINE__ << " resource_uri: " << resource_uri << " offset: " << offset << "resource_uri.length(): " << resource_uri.length() << std::endl;
           uri(resource_uri);
           return;
