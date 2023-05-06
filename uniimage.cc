@@ -1361,6 +1361,74 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
     return(std::string().length());
 }
 
+std::string noor::NetInterface::get_contentType(std::string ext)
+{
+    std::string cntType("");
+    /* get the extension now for content-type */
+    if(!ext.compare("woff")) {
+      cntType = "font/woff";
+    } else if(!ext.compare("woff2")) {
+      cntType = "font/woff2";
+    } else if(!ext.compare("ttf")) {
+      cntType = "font/ttf";
+    } else if(!ext.compare("otf")) {
+      cntType = "font/otf";
+    } else if(!ext.compare("css")) {
+      cntType = "text/css";
+    } else if(!ext.compare("js")) {
+      cntType = "text/javascript";
+    } else if(!ext.compare("eot")) {
+      cntType = "application/vnd.ms-fontobject";
+    } else if(!ext.compare("html")) {
+      cntType = "text/html";
+    } else if(!ext.compare("svg")) {
+      cntType = "image/svg+xml";
+    } else if(!ext.compare("gif")) {
+      cntType ="image/gif";
+    } else if(!ext.compare("png")) {
+      cntType = "image/png";
+    } else if(!ext.compare("ico")) {
+      cntType = "image/vnd.microsoft.icon";
+    } else if(!ext.compare("jpg")) {
+      cntType = "image/jpeg";
+    } else if(!ext.compare("json")) {
+      cntType = "application/json";
+    } else {
+      cntType = "text/html";
+    }
+    return(cntType);
+}
+
+
+std::string noor::NetInterface::buildHttpResponseOK(Http& http, std::string body, std::string contentType)
+{
+    std::stringstream ss("");
+
+    ss << "HTTP/1.1 200 OK\r\n"
+       << "Connection: "
+       << http.value("Connection")
+       << "\r\n"
+       << "Host: "
+       << http.value("Host")
+       << "\r\n"
+       << "Access-Control-Allow-Origin: *\r\n";
+
+    if(body.length()) {
+        ss << "Content-Length: "
+           << body.length()
+           << "\r\n"
+           << "Content-Type: "
+           << contentType
+           <<"\r\n"
+           << "\r\n"
+           << body;
+
+    } else {
+        ss << "Content-Length: 0\r\n";
+    }
+    return(ss.str());
+}
+
 std::string noor::NetInterface::buildHttpRedirectResponse(Http& http, std::string rsp_body) {
     std::stringstream ss("");
     if(!rsp_body.length()) {
@@ -1433,7 +1501,7 @@ std::string noor::NetInterface::handleOptionsMethod(Http& http) {
 std::string noor::NetInterface::handleGetMethod(Http& http) {
 
     std::stringstream ss("");
-    if(!http.uri().compare(0, 20, " /api/v1/device/list") || !http.uri().compare(0, 2, " /")) {
+    if(!http.uri().compare(0, 20, " /api/v1/device/list")) {
         //Provide the device's list to Webclient.
         if(!noor::CommonResponse::instance().response().empty()) {
             ss << "[";
@@ -1456,8 +1524,83 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
 
     } else if(!http.uri().compare(0, 17, "/api/v1/device/ui")) {
         return(buildHttpRedirectResponse(http));
-    } else if(0) {
-        //
+
+    } else if((!http.uri().compare(0, 7, "/webui/"))) {
+        /* build the file name now */
+        std::string fileName("");
+        std::string ext("");
+
+        std::size_t found = http.uri().find_last_of(".");
+        if(found != std::string::npos) {
+          ext = http.uri().substr((found + 1), (http.uri().length() - found));
+          fileName = http.uri().substr(6, (http.uri().length() - 6));
+          std::string newFile = "../webgui/webui/" + fileName;
+          /* Open the index.html file and send it to web browser. */
+          std::ifstream ifs(newFile.c_str());
+          std::stringstream ss("");
+
+          if(ifs.is_open()) {
+              std::string cntType("");
+              cntType = get_contentType(ext); 
+
+              ss << ifs.rdbuf();
+              ifs.close();
+              return(buildHttpResponseOK(http, ss.str(), cntType));
+          }
+        }
+    } else if(!http.uri().compare(0, 8, "/assets/")) {
+        /* build the file name now */
+        std::string fileName("");
+        std::string ext("");
+
+        std::size_t found = http.uri().find_last_of(".");
+        if(found != std::string::npos) {
+          ext = http.uri().substr((found + 1), (http.uri().length() - found));
+          std::string newFile = "../webgui/webui" + http.uri();
+          /* Open the index.html file and send it to web browser. */
+          std::ifstream ifs(newFile.c_str(), std::ios::binary);
+          std::stringstream ss("");
+          std::string cntType("");
+
+          if(ifs.is_open()) {
+
+              cntType = get_contentType(ext);
+              ss << ifs.rdbuf();
+              ifs.close();
+
+              return(buildHttpResponseOK(http, ss.str(), cntType));
+          }
+        }
+
+    } else if((!http.uri().compare(0, 7, "/webui/"))) {
+        std::string newFile = "../webgui/webui/index.html";
+        /* Open the index.html file and send it to web browser. */
+        std::ifstream ifs(newFile.c_str(), std::ios::binary);
+        std::stringstream ss("");
+        std::string cntType("");
+
+        if(ifs.is_open()) {
+            cntType = "text/html";
+            ss << ifs.rdbuf();
+            ifs.close();
+
+            return(buildHttpResponseOK(http, ss.str(), cntType));
+        }
+    } else if(!http.uri().compare(0, 2, " /")) {
+        std::cout <<"line: " << __LINE__ << " processing index.html file " << std::endl;
+        std::string newFile = "../webgui/webui/index.html";
+        /* Open the index.html file and send it to web browser. */
+        std::ifstream ifs(newFile.c_str(), std::ios::binary);
+        std::stringstream ss("");
+        std::string cntType("");
+
+        if(ifs.is_open()) {
+            cntType = "text/html";
+            ss << ifs.rdbuf();
+            ifs.close();
+
+            return(buildHttpResponseOK(http, ss.str(), cntType));
+        }
     }
 
     return(std::string());

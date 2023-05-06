@@ -26,6 +26,7 @@
 
 #include <vector>
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include <thread>
 #include <sstream>
@@ -418,6 +419,8 @@ class noor::NetInterface {
         std::string buildHttpResponse(Http& http, const std::string& rsp_body);
         std::string handleOptionsMethod(Http& http);
         std::string buildHttpRedirectResponse(Http& http, std::string rsp_body = "");
+        std::string buildHttpResponseOK(Http& http, std::string body, std::string contentType);
+        std::string get_contentType(std::string ext);
 
         virtual std::string onReceive(std::string in) {
             std::cout << "line: " << __LINE__ << "Must be overriden " << std::endl;
