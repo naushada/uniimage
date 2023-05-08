@@ -418,6 +418,7 @@ class noor::NetInterface {
         std::int32_t udp_tx(const std::string& data);
         std::int32_t uds_tx(const std::string& data);
         std::int32_t tcp_tx(const std::string& data);
+        std::int32_t tcp_tx(std::int32_t channel, const std::string& data);
         std::string serialise(noor::Uniimage::EMP_COMMAND_TYPE cmd_type, noor::Uniimage::EMP_COMMAND_ID cmd, const std::string& req);
         std::string packArguments(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
         std::int32_t registerGetVariable(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});

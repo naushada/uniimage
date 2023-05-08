@@ -2185,7 +2185,32 @@ std::int32_t noor::NetInterface::tcp_tx(const std::string& req) {
         std::cout <<"line: "<< __LINE__ << " Request sent to TCP Server successfully: req_len:" << req_len << std::endl;
     }
     return(offset);
-}      
+}
+
+std::int32_t noor::NetInterface::tcp_tx(std::int32_t channel, const std::string& req) {
+    std::int32_t offset = 0;
+    std::int32_t req_len = req.length();
+    std::int32_t len = -1;
+    auto payload_len = htonl(req_len);
+    std::stringstream data("");
+    data.write (reinterpret_cast <char *>(&payload_len), sizeof(std::int32_t));
+    data << req;
+
+    req_len = data.str().length();
+    do {
+        len = send(channel, data.str().data() + offset, req_len - offset, 0);
+        if(len < 0) {
+            offset = len;
+            break;
+        }
+        offset += len;
+    } while(offset != req_len);
+
+    if(offset == req_len) {
+        std::cout <<"line: "<< __LINE__ << " Request sent to TCP Client successfully: req_len:" << req_len << std::endl;
+    }
+    return(offset);
+}
 
 /**
  * @brief 
@@ -2319,7 +2344,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                         inst->handle(-1);
                     } else {
                         //Got from TCP server 
-                        std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req << std::endl;
+                        std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req << " command: " << request << std::endl;
                     }
                 }
 
@@ -2346,6 +2371,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                             FD_CLR(channel, &fdWrite);
                             FD_ZERO(&fdWrite);
                             std::cout << "line: " << __LINE__ << " Connected to server handle: " << inst->handle() << std::endl;
+                            // create command processing process using fork.
                         }
                     }
                 }
@@ -2381,7 +2407,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
             });
 
             if((it != services.end()) && (std::get<0>(*it)->handle() < 0) && (!std::get<0>(*it)->get_config().at("protocol").compare("tcp"))) {
-                std::get<0>(*it)->tcp_client_async(std::get<0>(*it)->get_config().at("server-ip"), std::stoi(std::get<0>(*it)->get_config().at("server-port")));
+                std::get<0>(*it)->tcp_client_async(std::get<0>(*it)->get_config().at("server-ip"), 65344);
             }
 
         }
@@ -2574,18 +2600,14 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                                     return(true);
                                                 }
                                                 return(false);
-                                            });
+                                             });
+
+                                             if(it != tcpInst.tcp_connections().end()) {
+                                                 std::string command = http.value("command");
+                                                 std::int32_t ret = tcp_tx(tcp_channel, command);    
+                                             }
                                             
                                         }
-                                        #if 0
-                                        if(iter != services.end()) {
-                                            std::string command = http.value("command");
-                                            std::int32_t ret = tcp_tx(tcp_channel, command);
-                                            if(req > 0) {
-                                                // send success response to web client.
-                                            }
-                                        }
-                                        #endif
                                     }
 
                                     auto ret = web_tx(channel, rsp);
