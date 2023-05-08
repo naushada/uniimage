@@ -1485,6 +1485,9 @@ std::string noor::NetInterface::buildHttpRedirectResponse(Http& http, std::strin
     }
 
     ss << "HTTP/1.1 301 FOUND\r\n"
+       << "Location: https://"
+       << http.value("ipAddress")
+       << ":443\r\n"
        << "Host: " << http.value("Host") << "\r\n"
        << "Connection: " << http.value("Connection") << "\r\n"
        << "Content-Type: text/html" << "\r\n"
