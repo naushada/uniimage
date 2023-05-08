@@ -1292,11 +1292,11 @@ noor::NetInterface::emp noor::NetInterface::uds_rx() {
  */
 std::int32_t noor::NetInterface::tcp_rx(std::int32_t channel, std::string& data, service_type svcType) {
 
-    if(TCP_DS_APP_PROVIDER_SVC == svcType) {
+    if(TCP_DS_APP_PEER_CONNECTED_SVC == svcType) {
         // Received from Datastore 
         return(tcp_rx(channel, data));
 
-    } else if(TCP_CONSOLE_APP_PROVIDER_SVC == svcType) {
+    } else if(TCP_CONSOLE_APP_PEER_CONNECTED_SVC == svcType) {
 
         // Received the Console output
         std::array<char, 2048> payload;
