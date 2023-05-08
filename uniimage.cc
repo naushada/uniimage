@@ -1725,7 +1725,9 @@ std::int32_t noor::NetInterface::web_rx(std::int32_t channel, std::string& data)
     std::int32_t len = -1;
     len = recv(channel, arr.data(), arr.size(), 0);
     if(!len) {
-        std::cout << "function: "<<__FUNCTION__ << " line: " << __LINE__ << " closed" << std::endl;
+        std::cout << "function: "<<__FUNCTION__ << " line: " << __LINE__ << " channel: " << channel << " be closed" << std::endl;
+        return(len);
+
     } else if(len > 0) {
         std::string ss(arr.data(), len);
         std::cout << "HTTP:" << std::endl << ss << std::endl;
@@ -1776,7 +1778,7 @@ std::int32_t noor::NetInterface::web_rx(std::int32_t channel, std::string& data)
             }
         }
     }
-    return(std::string().length());
+    return(0);
 }
 
 /**
@@ -2425,13 +2427,19 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
 
             if(!inst->web_connections().empty()) {
                 for(const auto& [key, value]: inst->web_connections()) {
-                    FD_SET(std::get<0>(value), &readFd);    
+                    auto channel = std::get<0>(value);
+                    if(channel > 0) { 
+                        FD_SET(channel, &readFd);
+                    }
                 }
             }
 
             if(!inst->tcp_connections().empty()) {
                 for(const auto& [key, value]: inst->tcp_connections()) {
-                    FD_SET(std::get<0>(value), &readFd);    
+                    auto channel = std::get<0>(value);
+                    if(channel > 0) { 
+                        FD_SET(channel, &readFd);
+                    }
                 }
             }
         }
@@ -2478,7 +2486,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                 }
                 
                 if(!inst->tcp_connections().empty()) {
-                    for(const auto &[key, value]: inst->tcp_connections()) {
+                    for(auto &[key, value]: inst->tcp_connections()) {
                         auto channel = std::get<0>(value);
                         auto svc_type = std::get<3>(value);
 
@@ -2491,7 +2499,9 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                 //client is closed now
                                 std::cout << "line: " << __LINE__ << " req.length: " << request.length() << " service_type: " << svc_type << std::endl; 
                                 ::close(channel);
-                                inst->tcp_connections().erase(channel);
+                                std::get<0>(value) = -1;
+                                FD_CLR(channel, &readFd);
+                                //inst->tcp_connections().erase(channel);
                             } else {
                                 std::cout << "line: " << __LINE__ << " Data TCP Server Received: " << request << std::endl;
                                 if(TCP_DS_APP_PEER_CONNECTED_SVC == svc_type) {
@@ -2519,18 +2529,25 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                         }
                     }
                 }
+                
+                std::erase_if(inst->tcp_connections(), [](auto& ent) {
+                    return(std::get<0>(ent.second) == -1);
+                });
+
                 if(!inst->web_connections().empty()) {
-                    for(const auto &[key, value]: inst->web_connections()) {
+                    for(auto &[key, value]: inst->web_connections()) {
                         auto channel = std::get<0>(value);
                         if(channel > 0 && FD_ISSET(channel, &readFd)) {
                             //From Web Client 
                             std::string request("");
                             auto req = inst->web_rx(channel, request);
                             if(!req) {
-                                std::cout << "line: " << __LINE__ << " req.length: " << request.length() << " channel: " << channel <<std::endl; 
+                                std::cout << "line: " << __LINE__ << " req.length: " << request.length() << " channel: " << channel << " closing now "<<std::endl; 
                                 //client is closed now 
                                 ::close(channel);
-                                auto it = inst->web_connections().erase(channel);
+                                std::get<0>(value) = -1;
+                                FD_CLR(channel, &readFd);
+                                //auto it = inst->web_connections().erase(channel);
                             } else {
                                 std::cout << "line: " << __LINE__ << " Request from Web client channel: " << channel <<" Received: " << request << std::endl;
                                 Http http(request);
@@ -2577,7 +2594,12 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                         }
                     }
                 }
+                // get rid of all entries whose fd is -1 
+                std::erase_if(inst->web_connections(), [](auto& ent) {
+                    return(std::get<0>(ent.second) == -1);
+                });
             }
+
         } /*conns > 0*/
     } /* End of while loop */
 }
