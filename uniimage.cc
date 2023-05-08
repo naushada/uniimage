@@ -1330,7 +1330,7 @@ std::int32_t noor::NetInterface::tcp_rx(std::int32_t channel, std::string& data)
     len = recv(channel, arr.data(), sizeof(std::int32_t), 0);
     if(!len) {
         std::cout << "line: " << __LINE__ << " channel: " << channel << " closed " << std::endl;
-        return(!len);
+        return(len);
 
     } else if(len > 0) {
         //std::cout << "line: " << __LINE__ << " len: " << len << std::endl;
