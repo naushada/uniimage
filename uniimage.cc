@@ -1633,6 +1633,22 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
           } {
             std::cout << "line: " << __LINE__ << " couldn't open the file: " << newFile << std::endl; 
           }
+        } else {
+            std::cout <<"line: " << __LINE__ << " processing index.html file " << std::endl;
+            std::string newFile = "../webgui/swi/index.html";
+            /* Open the index.html file and send it to web browser. */
+            std::ifstream ifs(newFile.c_str(), std::ios::binary);
+            std::stringstream ss("");
+            std::string cntType("");
+
+            if(ifs.is_open()) {
+                cntType = "text/html";
+                ss << ifs.rdbuf();
+                ifs.close();
+                return(buildHttpResponseOK(http, ss.str(), cntType));
+            } else {
+                std::cout << "line: " << __LINE__ << " couldn't open the file: " << newFile << std::endl;
+            }
         }
     } else if(!http.uri().compare(0, 1, "/")) {
         std::cout <<"line: " << __LINE__ << " processing index.html file " << std::endl;
