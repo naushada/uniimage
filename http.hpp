@@ -57,6 +57,12 @@ class noor::Http {
             m_params.insert(std::pair(key, value));
         }
 
+        void dump() {
+            std::for_each(m_params.begin(), m_params.end(), [&](const auto& ent) {
+                std::cout << "key: " << ent.first << " value: " << ent.second << std::endl;
+            });
+        }
+
         std::string value(const std::string& key) {
             auto it = m_params.find(key);
             if(it != m_params.end()) {

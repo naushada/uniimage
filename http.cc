@@ -59,7 +59,7 @@ void noor::Http::parse_uri(const std::string& in)
   if(std::string::npos != offset) {
     /* Qstring */
     std::string first_line = in.substr(0, offset);
-    std::cout << "line: " << __LINE__ <<" The request string is " << first_line << std::endl;
+    //std::cout << "line: " << __LINE__ <<" The request string is " << first_line << std::endl;
 
     offset = first_line.find_first_of(" ", 0);
     // HTTP Request line must start with method - GET/POST/PUT/DELETE/OPTIONS
@@ -67,7 +67,7 @@ void noor::Http::parse_uri(const std::string& in)
 
       //e.g. The request string is GET /webui/main.04e34705edfe295e.js HTTP/1.1
       auto req_method = first_line.substr(0, offset);
-      std::cout << "line: " << __LINE__ << " req_method " << req_method << std::endl;
+      //std::cout << "line: " << __LINE__ << " req_method " << req_method << std::endl;
       method(req_method); //GET/POST/PUT/DELETE/OPTIONS
       offset = first_line.find_first_of("?", 0);
 
@@ -78,22 +78,22 @@ void noor::Http::parse_uri(const std::string& in)
         offset = first_line.find_last_of(" ");
 
         if(std::string::npos != offset) {
-          auto resource_uri = first_line.substr(method().length() , offset - method().length());
+          auto resource_uri = first_line.substr(method().length()+1 , (offset - method().length() -1));
           std::cout << "line: " << __LINE__ << " resource_uri: " << resource_uri << " offset: " << offset << "resource_uri.length(): " << resource_uri.length() << std::endl;
           uri(resource_uri);
           return;
         }
 
       } else {
-
-        auto resource_uri = first_line.substr(method().length() + 1, offset - ((method().length() + 1)));
-	std::cout << "line: " << __LINE__ << " resource_uri: " << resource_uri << std::endl;
+        // '?' is present
+        auto resource_uri = first_line.substr(method().length() +1 , (offset - (method().length() + 1)));
+        std::cout << "line: " << __LINE__ << " resource_uri: " << resource_uri <<" length: " << resource_uri.length() << std::endl;
         uri(resource_uri);
       }
     }
 
     std::string QS(first_line.substr(offset + 1));
-    offset = QS.find_last_of(" ");
+    offset = QS.find_first_of(" ");
     QS = QS.substr(0, offset);
 
     while(true) {
@@ -131,7 +131,7 @@ void noor::Http::parse_header(const std::string& in)
   if(std::string::npos != offset) {
     //HTTP Header part
     auto header = input.str().substr(0, offset);
-    std::cout << "line: " << __LINE__ << " offset: " << offset << " header: " << header << std::endl; 
+    //std::cout << "line: " << __LINE__ << " offset: " << offset << " header: " << header << std::endl; 
     std::stringstream ss(header);
 
     while(!ss.eof()) {
@@ -144,7 +144,7 @@ void noor::Http::parse_header(const std::string& in)
       //getting rid of trailing \r\n
       offset = value.find_first_of("\r\n");
       value = value.substr(0, offset);
-      std::cout <<"line: " << __LINE__ << " key: " << key << " value: " << value << std::endl;
+      //std::cout <<"line: " << __LINE__ << " key: " << key << " value: " << value << std::endl;
       if(!key.empty() && !value.empty()) {
         add_element(key, value);
       }
@@ -158,7 +158,7 @@ std::string noor::Http::get_header(const std::string& in)
   auto offset = in.find_last_of("\r\n\r\n", in.length(), 4);
   if(std::string::npos != offset) {
     header = in.substr(0, offset);
-    std::cout << "line: " << __LINE__ << " HTTP Header " << header << std::endl;
+    //std::cout << "line: " << __LINE__ << " HTTP Header " << header << std::endl;
     return(header);
   }
   

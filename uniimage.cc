@@ -1,9 +1,31 @@
 #ifndef __uniimage__cc__
 #define __uniimage__cc__
 
+/**
+ * @file uniimage.cc
+ * @author your name (you@domain.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-05-06
+ * 
+ * @copyright Copyright (c) 2023
+ *
+ _   _ _ __ (_|_)_ __ ___   __ _  __ _  ___ 
+| | | | '_ \| | | '_ ` _ \ / _` |/ _` |/ _ \
+| |_| | | | | | | | | | | | (_| | (_| |  __/
+ \__,_|_| |_|_|_|_| |_| |_|\__,_|\__, |\___|
+                                 |___/     
+ */
+
 #include "uniimage.hpp"
 #include "http.hpp"
-
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param PORT 
+ * @return std::int32_t 
+ */
 std::int32_t noor::Uniimage::web_server(const std::string& IP, std::uint16_t PORT) {
     /* Set up the address we're going to bind to. */
     bzero(&m_web_server, sizeof(m_web_server));
@@ -615,6 +637,11 @@ std::int32_t noor::Uniimage::start_client() {
     } /* End of while loop */
 }
 
+/**
+ * @brief 
+ * 
+ * @return std::int32_t 
+ */
 std::int32_t noor::Uniimage::start_server() {
     //Read required Key's value from Data Store.
     int conn_id   = -1;
@@ -729,6 +756,13 @@ std::int32_t noor::Uniimage::start_server() {
 }
 
 //***************** UDP *******************
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param port 
+ * @return std::int32_t 
+ */
 std::int32_t noor::Uniimage::udp_client(const std::string& IP, std::uint16_t port) {
     //UDP Client .... 
     /* Set up the address we're going to bind to. */
@@ -757,6 +791,13 @@ std::int32_t noor::Uniimage::udp_client(const std::string& IP, std::uint16_t por
     return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param port 
+ * @return std::int32_t 
+ */
 std::int32_t noor::Uniimage::udp_server(const std::string& IP, std::uint16_t port) {
     //UDP Server .... 
     /* Set up the address we're going to bind to. */
@@ -794,6 +835,13 @@ std::int32_t noor::Uniimage::udp_server(const std::string& IP, std::uint16_t por
     return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @param channel 
+ * @param req 
+ * @return std::int32_t 
+ */
 std::int32_t noor::Uniimage::udp_tx(std::int32_t channel, const std::string& req) {
     std::int32_t offset = 0;
     std::int32_t payload_len = req.length();
@@ -819,6 +867,12 @@ std::int32_t noor::Uniimage::udp_tx(std::int32_t channel, const std::string& req
     return(offset);
 }
 
+/**
+ * @brief 
+ * 
+ * @param channel 
+ * @return std::string 
+ */
 std::string noor::Uniimage::udp_rx(std::int32_t channel) {
     std::array<char, 8> arr;
     arr.fill(0);
@@ -868,19 +922,33 @@ std::vector<struct option> options = {
     {"wan-interface-instance",    required_argument, 0, 'a'},
     {"protocol",                  required_argument, 0, 't'},
     {"self-ip",                   required_argument, 0, 's'},
-    {"self-port",                 required_argument, 0, 'e'}
+    {"self-port",                 required_argument, 0, 'e'},
+    {"time-out",                  required_argument, 0, 'o'}
 };
 
+/*
+ _ __ ___   __ _(_)_ __  
+| '_ ` _ \ / _` | | '_ \ 
+| | | | | | (_| | | | | |
+|_| |_| |_|\__,_|_|_| |_|
+*/
+/**
+ * @brief 
+ * 
+ * @param argc 
+ * @param argv 
+ * @return int 
+ */
 int main(std::int32_t argc, char *argv[]) {
     std::int32_t c;
     std::int32_t option_index = 0;
-    std::string role("");
     std::unordered_map<std::string, std::string> config;
     
-    while ((c = getopt_long(argc, argv, "r:i:p:w:t:a:s:e:", options.data(), &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "r:i:p:w:t:a:s:e:o:", options.data(), &option_index)) != -1) {
         switch(c) {
             case 'r':
             {
+                std::string role("");
                 role = optarg;
                 if(role.compare("client") && (role.compare("server"))) {
                     std::cout << "Invalid value for --role, possible value is client or server "<< std::endl;
@@ -924,6 +992,11 @@ int main(std::int32_t argc, char *argv[]) {
                 config.emplace(std::make_pair("self-port", optarg));
             }
             break;
+            case 'o':
+            {
+                config.emplace(std::make_pair("time-out", optarg));
+            }
+            break;
 
             default:
             {
@@ -934,7 +1007,8 @@ int main(std::int32_t argc, char *argv[]) {
                           << "--self-ip   <self ip for bind receive request> " << std::endl
                           << "--self-port <self port for bind to receive request> " << std::endl
                           << "--protocol  <tcp|udp|unix> " << std::endl
-                          << "--wan-interface-instance <c1|c3|c4|c5|w1|w2|e1|e2|e3> " << std::endl;
+                          << "--wan-interface-instance <c1|c3|c4|c5|w1|w2|e1|e2|e3> " << std::endl
+                          << "--time-out <value in ms> " << std::endl;
                           return(-1);
             }
         }
@@ -956,26 +1030,31 @@ int main(std::int32_t argc, char *argv[]) {
     }
 #endif
 
-    //std::unique_ptr<noor::NetInterface> unimanage = std::make_unique<noor::NetInterface>();
+    
     noor::NetInterface unimanage;
-    std::vector<std::tuple<std::unique_ptr<noor::NetInterface>, noor::NetInterface::socket_type>> ent;
+    std::vector<std::tuple<std::unique_ptr<noor::NetInterface>, noor::NetInterface::service_type>> ent;
     ent.clear();
-    //unimanage.set_config(config);
+    
 
     if(!config["role"].compare("client")) {
 
         if(!config["protocol"].compare("tcp")) {
-            ent.push_back({std::make_unique<TcpClient>(config), noor::NetInterface::socket_type::TCP_ASYNC});
-        } else {
-            ent.push_back({std::make_unique<UdpClient>(config), noor::NetInterface::socket_type::UDP});
+            ent.push_back({std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC});
+            ent.push_back({std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC});
         }
-        ent.push_back({std::make_unique<UnixClient>(), noor::NetInterface::socket_type::UNIX});
+        ent.push_back({std::make_unique<UnixClient>(), noor::NetInterface::service_type::UNIX});
 
-        std::get<0>(ent.at(1))->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
-        std::get<0>(ent.at(1))->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
-        std::get<0>(ent.at(1))->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
+        std::get<0>(ent.at(0))->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
+        std::get<0>(ent.at(0))->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
+        std::get<0>(ent.at(0))->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
         std::cout << "line: " << __LINE__ << " TCP_ASYNC: " << std::get<0>(ent.at(0))->handle() << " : " <<std::get<0>(ent.at(0))->connected_client(std::get<0>(ent.at(0))->handle())<< std::endl;
-        unimanage.start_client(100, std::move(ent));
+
+        auto timeout = 100;
+        if(config["time-out"].length()) {
+            timeout = std::stoi(config["time-out"]);
+        }
+
+        unimanage.start_client(timeout, std::move(ent));
 
         #if 0
         unimanage.getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
@@ -990,34 +1069,33 @@ int main(std::int32_t argc, char *argv[]) {
     } else if(!config["role"].compare("server")) {
         ///server 
         if(!config["protocol"].compare("tcp")) {
-            ent.push_back({std::make_unique<TcpServer>(config), noor::NetInterface::socket_type::TCP});
-        } else if(!config["protocol"].compare("udp")) {
-            ent.push_back({std::make_unique<UdpServer>(config), noor::NetInterface::socket_type::UDP});
-        } else {
-            //Don't know 
+            ent.push_back({std::make_unique<TcpServer>(config, noor::NetInterface::service_type::TCP_CONSOLE_APP_PROVIDER_SVC), noor::NetInterface::service_type::TCP_CONSOLE_APP_PROVIDER_SVC});
+            ent.push_back({std::make_unique<TcpServer>(config, noor::NetInterface::service_type::TCP_DS_APP_PROVIDER_SVC), noor::NetInterface::service_type::TCP_DS_APP_PROVIDER_SVC});
         }
         
-        ent.push_back({std::make_unique<WebServer>(config), noor::NetInterface::socket_type::WEB});
+        ent.push_back({std::make_unique<WebServer>(config, noor::NetInterface::service_type::TCP_WEB_APP_PROVIDER_SVC), noor::NetInterface::service_type::TCP_WEB_APP_PROVIDER_SVC});
 
-        //ent.push_back({std::make_unique<UnixServer>(), noor::NetInterface::socket_type::UNIX});
-        unimanage.start_server(100, std::move(ent));
+        auto timeout = 100;
+        if(config["time-out"].length()) {
+            timeout = std::stoi(config["time-out"]);
+        }
+
+        unimanage.start_server(timeout, std::move(ent));
     }
-    //noor::Dsclient inst;
-    //std::atomic<std::uint16_t> message_id;
-    //++message_id;
-    //inst.tx(Dsclient::EMP_COMMAND_TYPE::Request, Dsclient::EMP_COMMAND_ID::SingleGetVariable, message_id, "[\"services.sms.provision.enable\"]");
-    //inst.tx(Dsclient::EMP_COMMAND_TYPE::Request, Dsclient::EMP_COMMAND_ID::GetVariable, message_id, "[\"net.interface.cellular[]\"]");
-    //inst.tx(Dsclient::EMP_COMMAND_TYPE::Request, Dsclient::EMP_COMMAND_ID::GetVariable, message_id, "[\"net.interface.common[]\"]");
-    //inst.tx(Dsclient::EMP_COMMAND_TYPE::Request, Dsclient::EMP_COMMAND_ID::RegisterVariable, message_id, "[\"\", \"services.sms.provision.enable\"]");
-    //++message_id;
-    //inst.tx(Dsclient::EMP_COMMAND_TYPE::Request, Dsclient::EMP_COMMAND_ID::SetVariable, message_id, "[\"services.sms.provision.enable\", false]");
-    //inst.start();
 }
 
 std::int32_t noor::NetInterface::tcp_client_async(const std::string& IP, std::uint16_t PORT) {
     return(tcp_client(IP, PORT, true));
 }
 
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param PORT 
+ * @param isAsync 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::tcp_client(const std::string& IP, std::uint16_t PORT, bool isAsync) {
     /* Set up the address we're going to bind to. */
     bzero(&m_inet_server, sizeof(m_inet_server));
@@ -1084,6 +1162,13 @@ std::int32_t noor::NetInterface::tcp_client(const std::string& IP, std::uint16_t
     return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param PORT 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::udp_client(const std::string& IP, std::uint16_t PORT) {
     // UDP Client .... 
     bzero(&m_inet_server, sizeof(m_inet_server));
@@ -1111,6 +1196,12 @@ std::int32_t noor::NetInterface::udp_client(const std::string& IP, std::uint16_t
     return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @param PATH 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::uds_client(const std::string& PATH) {
     std::int32_t channel = -1;
     /* Set up the address we're going to bind to. */
@@ -1147,6 +1238,11 @@ std::int32_t noor::NetInterface::uds_client(const std::string& PATH) {
     return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @return noor::NetInterface::emp 
+ */
 noor::NetInterface::emp noor::NetInterface::uds_rx() {
     std::uint16_t command;
     std::uint16_t message_id;
@@ -1198,6 +1294,46 @@ noor::NetInterface::emp noor::NetInterface::uds_rx() {
     return(emp {});
 }
 
+/**
+ * @brief 
+ * 
+ * @param channel 
+ * @param data 
+ * @param svcType 
+ * @return std::int32_t 
+ */
+std::int32_t noor::NetInterface::tcp_rx(std::int32_t channel, std::string& data, service_type svcType) {
+
+    if(TCP_DS_APP_PEER_CONNECTED_SVC == svcType) {
+        // Received from Datastore 
+        return(tcp_rx(channel, data));
+
+    } else if(TCP_CONSOLE_APP_PEER_CONNECTED_SVC == svcType) {
+
+        // Received the Console output
+        std::array<char, 2048> payload;
+        payload.fill(0);
+        std::size_t len = -1;
+        len = recv(channel, (void *)payload.data(), (size_t)payload.size(), 0);
+        if(len < 0) {
+            std::cout << "line: " << __LINE__ << " recv error for channel: " << channel << std::endl;
+            return(0);
+        }
+        data.assign(std::string(payload.data(), len));
+        return(data.length());
+
+    }
+
+    return(0);
+}
+
+/**
+ * @brief 
+ * 
+ * @param channel 
+ * @param data 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::tcp_rx(std::int32_t channel, std::string& data) {
     std::array<char, 8> arr;
     arr.fill(0);
@@ -1205,8 +1341,9 @@ std::int32_t noor::NetInterface::tcp_rx(std::int32_t channel, std::string& data)
     //read 4 bytes - the payload length
     len = recv(channel, arr.data(), sizeof(std::int32_t), 0);
     if(!len) {
-        std::cout << "line: " << __LINE__ << " closed" << std::endl;
-        return(std::string().length());
+        std::cout << "line: " << __LINE__ << " channel: " << channel << " closed " << std::endl;
+        return(len);
+
     } else if(len > 0) {
         //std::cout << "line: " << __LINE__ << " len: " << len << std::endl;
         std::uint32_t payload_len; 
@@ -1239,6 +1376,12 @@ std::int32_t noor::NetInterface::tcp_rx(std::int32_t channel, std::string& data)
 
 }
 
+/**
+ * @brief 
+ * 
+ * @param data 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
     std::array<char, 8> arr;
     arr.fill(0);
@@ -1279,17 +1422,316 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
     return(std::string().length());
 }
 
+std::string noor::NetInterface::get_contentType(std::string ext)
+{
+    std::string cntType("");
+    /* get the extension now for content-type */
+    if(!ext.compare("woff")) {
+      cntType = "font/woff";
+    } else if(!ext.compare("woff2")) {
+      cntType = "font/woff2";
+    } else if(!ext.compare("ttf")) {
+      cntType = "font/ttf";
+    } else if(!ext.compare("otf")) {
+      cntType = "font/otf";
+    } else if(!ext.compare("css")) {
+      cntType = "text/css";
+    } else if(!ext.compare("js")) {
+      cntType = "text/javascript";
+    } else if(!ext.compare("eot")) {
+      cntType = "application/vnd.ms-fontobject";
+    } else if(!ext.compare("html")) {
+      cntType = "text/html";
+    } else if(!ext.compare("svg")) {
+      cntType = "image/svg+xml";
+    } else if(!ext.compare("gif")) {
+      cntType ="image/gif";
+    } else if(!ext.compare("png")) {
+      cntType = "image/png";
+    } else if(!ext.compare("ico")) {
+      cntType = "image/vnd.microsoft.icon";
+    } else if(!ext.compare("jpg")) {
+      cntType = "image/jpeg";
+    } else if(!ext.compare("json")) {
+      cntType = "application/json";
+    } else {
+      cntType = "text/html";
+    }
+    return(cntType);
+}
+
+
+std::string noor::NetInterface::buildHttpResponseOK(Http& http, std::string body, std::string contentType)
+{
+    std::stringstream ss("");
+
+    ss << "HTTP/1.1 200 OK\r\n"
+       << "Connection: "
+       << http.value("Connection")
+       << "\r\n"
+       << "Host: "
+       << http.value("Host")
+       << "\r\n"
+       << "Access-Control-Allow-Origin: *\r\n";
+
+    if(body.length()) {
+        ss << "Content-Length: "
+           << body.length()
+           << "\r\n"
+           << "Content-Type: "
+           << contentType
+           <<"\r\n"
+           << "\r\n"
+           << body;
+
+    } else {
+        ss << "Content-Length: 0\r\n";
+    }
+    return(ss.str());
+}
+
+std::string noor::NetInterface::buildHttpRedirectResponse(Http& http, std::string rsp_body) {
+    std::stringstream ss("");
+    if(!rsp_body.length()) {
+        rsp_body.assign("<html><title></title><head></head><body><h2>Redirecting to http://10.20.129.111</h2></body></html>");
+    }
+
+    ss << "HTTP/1.1 301 FOUND\r\n"
+       << "Location: https://"
+       << http.value("ipAddress")
+       << ":443\r\n"
+       << "Host: " << http.value("Host") << "\r\n"
+       << "Connection: " << http.value("Connection") << "\r\n"
+       << "Content-Type: text/html" << "\r\n"
+       << "Content-Length: " << rsp_body.length() << "\r\n";
+    
+    if(!http.value("Origin").length()) {
+        ss << "Access-Control-Allow-Origin: *\r\n";
+    } else {
+        ss << "Access-Control-Allow-Origin: "
+           << http.value("Origin")
+           << "\r\n";
+    }
+
+    ss << "\r\n"
+       << rsp_body;
+
+    return(ss.str());
+}
+
+std::string noor::NetInterface::buildHttpResponse(Http& http, const std::string& rsp_body) {
+    std::stringstream ss("");
+    if(!rsp_body.length()) {
+        ss << "HTTP/1.1 200 OK\r\n"
+           << "Connection: close" 
+           << "Content-Length: 0\r\n";
+       return(ss.str());
+    }
+
+    ss << "HTTP/1.1 200 OK\r\n"
+       << "Host: " << http.value("Host") << "\r\n"
+       << "Connection: " << http.value("Connection") << "\r\n"
+       << "Content-Type: application/json" << "\r\n";
+
+    if(!http.value("Origin").length()) {
+        ss << "Access-Control-Allow-Origin: *\r\n";
+    } else {
+        ss << "Access-Control-Allow-Origin: "
+           << http.value("Origin")
+           << "\r\n";
+    }
+
+    ss << "Content-Length: " << rsp_body.length() << "\r\n"
+       << "\r\n"
+       << rsp_body;
+
+    return(ss.str());
+}
+
+std::string noor::NetInterface::handleOptionsMethod(Http& http) {
+    std::stringstream http_header("");
+    http_header << "HTTP/1.1 200 OK\r\n";
+    http_header << "Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE\r\n";
+    http_header << "Access-Control-Allow-Headers: DNT, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Range\r\n";
+    http_header << "Access-Control-Max-Age: 1728000\r\n";
+
+    if(!http.value("Origin").length()) {
+        http_header << "Access-Control-Allow-Origin: *\r\n";
+    } else {
+        http_header << "Access-Control-Allow-Origin: "
+           << http.value("Origin")
+           << "\r\n";
+    }
+    
+    http_header << "Content-Type: text/plain; charset=utf-8\r\n";
+    http_header << "Content-Length: 0\r\n";
+    http_header << "\r\n";
+
+    return(http_header.str());
+}
+std::string noor::NetInterface::handleGetMethod(Http& http) {
+
+    std::stringstream ss("");
+    if(!http.uri().compare(0, 19, "/api/v1/device/list")) {
+        //Provide the device's list to Webclient.
+        if(!noor::CommonResponse::instance().response().empty()) {
+            ss << "[";
+            std::for_each(noor::CommonResponse::instance().response().begin(), noor::CommonResponse::instance().response().end(), [&](const auto& ent) {
+                ss << "[";
+                std::for_each(ent.second.begin(), ent.second.end(), [&](const auto & elm) {
+                    ss << elm << ",";
+                });
+                //get rid of last ',' from above array now.
+                ss.seekp(-1, std::ios_base::end);
+                ss << "],";
+            });
+            //get rid of last ','.
+            ss.seekp(-1, std::ios_base::end);
+            ss << "]";
+        } else {
+            //Test Data ---
+            ss << "[[{\"device.machine\": \"lexus-medium\", \"device.provisioning.serial\":\"A1234\", \"net.interface[w1].ipv4.address\": \"192.168.0.140\"}]]";
+        }
+
+        auto rsp = buildHttpResponse(http, ss.str());
+        return(rsp);
+
+    } else if(!http.uri().compare(0, 17, "/api/v1/device/ui")) {
+        return(buildHttpRedirectResponse(http));
+
+    } else if(!http.uri().compare(0, 21, "/api/v1/shell/command")) {
+        //Sheel command to be executed
+        http.dump();
+        auto serialNumber = http.value("serialNo");
+        auto command = http.value("command");
+        auto IP = http.value("ipAddress");
+
+        if(!command.length()) {
+            return(buildHttpResponse(http, ""));
+        }
+
+        //Find the TCP Client Fd for sending the command.
+        if(!tcp_connections().empty()) {
+            auto it = std::find_if(tcp_connections().begin(), tcp_connections().end(), [&](const auto& ent) -> bool {
+                return(IP.length() && IP == std::get<1>(ent.second));
+            });
+            if(it != tcp_connections().end()) {
+                auto connFd = it->first;
+                //auto ret = tcp_tx(connFd, command);
+            }
+        }
+
+    } else if((!http.uri().compare(0, 7, "/webui/"))) {
+        /* build the file name now */
+        std::string fileName("");
+        std::string ext("");
+
+        std::size_t found = http.uri().find_last_of(".");
+        if(found != std::string::npos) {
+          ext = http.uri().substr((found + 1), (http.uri().length() - found));
+          fileName = http.uri().substr(6, (http.uri().length() - 6));
+          std::string newFile = "../webgui/swi/" + fileName;
+          /* Open the index.html file and send it to web browser. */
+          std::ifstream ifs(newFile.c_str());
+          std::stringstream ss("");
+
+          if(ifs.is_open()) {
+              std::string cntType("");
+              cntType = get_contentType(ext); 
+
+              ss << ifs.rdbuf();
+              ifs.close();
+              return(buildHttpResponseOK(http, ss.str(), cntType));
+          } {
+            std::cout << "line: " << __LINE__ << " couldn't open the file: " << newFile << std::endl; 
+          }
+        } else {
+            std::cout <<"line: " << __LINE__ << " processing index.html file " << std::endl;
+            std::string newFile = "../webgui/swi/index.html";
+            /* Open the index.html file and send it to web browser. */
+            std::ifstream ifs(newFile.c_str(), std::ios::binary);
+            std::stringstream ss("");
+            std::string cntType("");
+
+            if(ifs.is_open()) {
+                cntType = "text/html";
+                ss << ifs.rdbuf();
+                ifs.close();
+                return(buildHttpResponseOK(http, ss.str(), cntType));
+            } else {
+                std::cout << "line: " << __LINE__ << " couldn't open the file: " << newFile << std::endl;
+            }
+        }
+    } else if(!http.uri().compare(0, 1, "/")) {
+        std::cout <<"line: " << __LINE__ << " processing index.html file " << std::endl;
+        std::string newFile = "../webgui/swi/index.html";
+        /* Open the index.html file and send it to web browser. */
+        std::ifstream ifs(newFile.c_str(), std::ios::binary);
+        std::stringstream ss("");
+        std::string cntType("");
+
+        if(ifs.is_open()) {
+            cntType = "text/html";
+            ss << ifs.rdbuf();
+            ifs.close();
+
+            return(buildHttpResponseOK(http, ss.str(), cntType));
+        } else {
+            std::cout << "line: " << __LINE__ << " couldn't open the file: " << newFile << std::endl;
+        }
+    }
+
+    return(std::string());
+}
+
+std::string noor::NetInterface::process_web_request(const std::string& req) {
+    Http http(req);
+    if(!http.method().compare("GET")) {
+        //handleGetRequest()
+        auto rsp_body = handleGetMethod(http);
+        return(rsp_body);
+        /*
+        if(rsp_body.length()) {
+            auto rsp = buildHttpResponse(http, rsp_body);
+            return(rsp);
+        }*/
+    }
+    else if(!http.method().compare("POST")) {
+        //handlePostMethod()
+    }
+    else if(!http.method().compare("PUT")) {
+        //handlePutMethod()
+    }
+    else if(!http.method().compare("OPTIONS")) {
+        return(handleOptionsMethod(http));
+    }
+    else if(!http.method().compare("DELETE")) {
+        //handleDeleteMethod()
+    }
+    else {
+        //Error
+    }
+    return(std::string());
+}
+
+/**
+ * @brief 
+ * 
+ * @param http 
+ * @return std::string 
+ */
 std::string noor::NetInterface::build_web_response(Http& http) {
     //Build HTTP Response
     std::cout << "URI: " << http.uri() << " method: " << http.method() << std::endl;
     std::stringstream ss("");
     std::string payload("<html><title></title><head></head><body><h2>Redirecting to http://10.20.129.111</h2></body></html>");
-    ss << "HTTP/1.1 301 Moved Permanently\r\n"
+    ss << "HTTP/1.1 302 Found\r\n"
        //<< "Location: https://192.168.1.1:443\r\n"
        << "Location: http://10.20.129.111\r\n"
        << "Content-length: " << payload.length() << "\r\n"
        << "Connection: close\r\n"
        //<< "Cookie: unity_token=IC3wWl66tT3XrqO88iLBSxCYbuxhPvGz; unity_login=admin; last_connection={\"success_last\":\"Sat Apr  8 03:47:22 2023\",\"success_from\":\"192.168.1.100\",\"failures\":0}" 
+       << "Cookie: " << http.value("Cookies")
        << "\r\n\r\n"
        << payload;
 
@@ -1297,17 +1739,26 @@ std::string noor::NetInterface::build_web_response(Http& http) {
     return(ss.str());
 }
 
+/**
+ * @brief 
+ * 
+ * @param channel 
+ * @param data 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::web_rx(std::int32_t channel, std::string& data) {
-    std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << " handle:" << handle() <<std::endl;
+    std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << " handle:" << channel <<std::endl;
     std::array<char, 2048> arr;
     arr.fill(0);
     std::int32_t len = -1;
     len = recv(channel, arr.data(), arr.size(), 0);
     if(!len) {
-        std::cout << "function: "<<__FUNCTION__ << " line: " << __LINE__ << " closed" << std::endl;
+        std::cout << "function: "<<__FUNCTION__ << " line: " << __LINE__ << " channel: " << channel << " be closed" << std::endl;
+        return(len);
+
     } else if(len > 0) {
         std::string ss(arr.data(), len);
-        std::cout << "HTTP: " << std::endl << ss << std::endl;
+        std::cout << "HTTP:" << std::endl << ss << std::endl;
         Http http(ss);
         std::cout << "line: " << __LINE__ << " URI: "   << http.uri()    << std::endl;
         std::cout << "line: " << __LINE__ << " Header " << http.header() << std::endl;
@@ -1355,9 +1806,15 @@ std::int32_t noor::NetInterface::web_rx(std::int32_t channel, std::string& data)
             }
         }
     }
-    return(std::string().length());
+    return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @param data 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::web_rx(std::string& data) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << " handle:" << handle() <<std::endl;
     std::array<char, 2048> arr;
@@ -1419,6 +1876,12 @@ std::int32_t noor::NetInterface::web_rx(std::string& data) {
     return(std::string().length());  
 }
 
+/**
+ * @brief 
+ * 
+ * @param data 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::udp_rx(std::string& data) {
     std::array<char, 8> arr;
     arr.fill(0);
@@ -1462,12 +1925,23 @@ std::int32_t noor::NetInterface::udp_rx(std::string& data) {
     return(std::string().length());
 }
 
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param PORT 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::tcp_server(const std::string& IP, std::uint16_t PORT) {
    /* Set up the address we're going to bind to. */
     bzero(&m_inet_server, sizeof(m_inet_server));
     m_inet_server.sin_family = AF_INET;
     m_inet_server.sin_port = htons(PORT);
-    m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+    if(!IP.compare("127.0.0.1")) {
+        m_inet_server.sin_addr.s_addr = INADDR_ANY;    
+    } else {
+        m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+    }
     memset(m_inet_server.sin_zero, 0, sizeof(m_inet_server.sin_zero));
     auto len = sizeof(m_inet_server);
 
@@ -1504,6 +1978,13 @@ std::int32_t noor::NetInterface::tcp_server(const std::string& IP, std::uint16_t
     return(0); 
 }
 
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param PORT 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::udp_server(const std::string& IP, std::uint16_t PORT) {
     // UDP Server .... 
     /* Set up the address we're going to bind to. */
@@ -1541,12 +2022,25 @@ std::int32_t noor::NetInterface::udp_server(const std::string& IP, std::uint16_t
     return(0);
 }
 
+/**
+ * @brief 
+ * 
+ * @param IP 
+ * @param PORT 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::web_server(const std::string& IP, std::uint16_t PORT) {
     /* Set up the address we're going to bind to. */
     bzero(&m_inet_server, sizeof(m_inet_server));
     m_inet_server.sin_family = AF_INET;
     m_inet_server.sin_port = htons(PORT);
-    m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+
+    if(!IP.compare("127.0.0.1")) {
+        m_inet_server.sin_addr.s_addr = INADDR_ANY;    
+    } else {
+        m_inet_server.sin_addr.s_addr = inet_addr(IP.c_str());
+    }
+
     memset(m_inet_server.sin_zero, 0, sizeof(m_inet_server.sin_zero));
     auto len = sizeof(m_inet_server);
 
@@ -1583,7 +2077,13 @@ std::int32_t noor::NetInterface::web_server(const std::string& IP, std::uint16_t
     return(0); 
 }
 
-
+/**
+ * @brief 
+ * 
+ * @param channel 
+ * @param req 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::web_tx(std::int32_t channel, const std::string& req) {
     std::int32_t offset = 0;
     std::int32_t req_len = req.length();
@@ -1601,6 +2101,12 @@ std::int32_t noor::NetInterface::web_tx(std::int32_t channel, const std::string&
     return(offset);
 }
 
+/**
+ * @brief 
+ * 
+ * @param req 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::web_tx(const std::string& req) {
     std::int32_t offset = 0;
     std::int32_t req_len = req.length();
@@ -1618,6 +2124,12 @@ std::int32_t noor::NetInterface::web_tx(const std::string& req) {
     return(offset);
 }
 
+/**
+ * @brief 
+ * 
+ * @param req 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::udp_tx(const std::string& req) {
     std::int32_t offset = 0;
     std::int32_t payload_len = req.length();
@@ -1643,6 +2155,12 @@ std::int32_t noor::NetInterface::udp_tx(const std::string& req) {
     return(offset);
 }
 
+/**
+ * @brief 
+ * 
+ * @param req 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::uds_tx(const std::string& req) {
     std::int32_t offset = 0;
     std::int32_t req_len = req.length();
@@ -1667,6 +2185,12 @@ std::int32_t noor::NetInterface::uds_tx(const std::string& req) {
     return(offset);
 }
 
+/**
+ * @brief 
+ * 
+ * @param req 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::tcp_tx(const std::string& req) {
     std::int32_t offset = 0;
     std::int32_t req_len = req.length();
@@ -1689,9 +2213,41 @@ std::int32_t noor::NetInterface::tcp_tx(const std::string& req) {
         std::cout <<"line: "<< __LINE__ << " Request sent to TCP Server successfully: req_len:" << req_len << std::endl;
     }
     return(offset);
-}      
+}
 
-std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<NetInterface>, socket_type>> intf_list) {
+std::int32_t noor::NetInterface::tcp_tx(std::int32_t channel, const std::string& req) {
+    std::int32_t offset = 0;
+    std::int32_t req_len = req.length();
+    std::int32_t len = -1;
+    auto payload_len = htonl(req_len);
+    std::stringstream data("");
+    data.write (reinterpret_cast <char *>(&payload_len), sizeof(std::int32_t));
+    data << req;
+
+    req_len = data.str().length();
+    do {
+        len = send(channel, data.str().data() + offset, req_len - offset, 0);
+        if(len < 0) {
+            offset = len;
+            break;
+        }
+        offset += len;
+    } while(offset != req_len);
+
+    if(offset == req_len) {
+        std::cout <<"line: "<< __LINE__ << " Request sent to TCP Client successfully: req_len:" << req_len << std::endl;
+    }
+    return(offset);
+}
+
+/**
+ * @brief 
+ * 
+ * @param timeout_in_ms 
+ * @param intf_list 
+ * @return std::int32_t 
+ */
+std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<NetInterface>, service_type>> services) {
     int conns  = -1;
     fd_set fdList;
     fd_set fdWrite;
@@ -1705,13 +2261,13 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
         FD_ZERO(&fdList);
         FD_ZERO(&fdWrite);
         
-        for(auto& [inst, type]: intf_list) {
+        for(auto& [inst, type]: services) {
             auto channel = inst->handle();
 
-            if(channel > 0 && noor::NetInterface::socket_type::UNIX == type) {
+            if(channel > 0 && noor::NetInterface::service_type::UNIX == type) {
                 FD_SET(channel, &fdList);
 
-            } else if(channel > 0 && noor::NetInterface::socket_type::TCP_ASYNC == type) {
+            } else if(channel > 0 && noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC == type) {
                 if(inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
                     //std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " handle: " << channel << "connected " << std::endl;
                     FD_SET(channel, &fdList);
@@ -1720,16 +2276,15 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                     FD_SET(channel, &fdWrite);
                 }
 
-            } else if(channel > 0 && noor::NetInterface::socket_type::UDP == type) {
-                FD_SET(channel, &fdList);
-
-            } else if(channel > 0 && noor::NetInterface::socket_type::UDP_ASYNC == type) {
-                FD_SET(channel, &fdList);
-
-            } else if(channel > 0 && noor::NetInterface::socket_type::TCP == type) {
+            } else if(channel > 0 && noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC == type) {
                 if(inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
+                    //std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " handle: " << channel << "connected " << std::endl;
                     FD_SET(channel, &fdList);
+                } else if(inst->connected_client(inst->handle()) == noor::NetInterface::client_connection::Inprogress) {
+                    //std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " handle: " << channel << "fdWrite " << std::endl;
+                    FD_SET(channel, &fdWrite);
                 }
+
             }
         }
 
@@ -1737,11 +2292,11 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
         
         if(conns > 0) {
 
-            for(auto& [inst, type]: intf_list) {
+            for(auto& [inst, type]: services) {
                 auto channel = inst->handle();
 
                 // Received on Unix Socket
-                if(channel > 0 && type == noor::NetInterface::socket_type::UNIX && FD_ISSET(channel, &fdList)) {
+                if(channel > 0 && type == noor::NetInterface::service_type::UNIX && FD_ISSET(channel, &fdList)) {
                     //Received response from Data store
                     std::string request("");
                     std::cout << "From DS line: " << __LINE__<<" Response received " << std::endl;
@@ -1758,18 +2313,9 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                         inst->update_response_to_cache(req.m_message_id, req.m_response);
                     }
                 }
-                //Received on UDP Socket
-                if(channel > 0 && type == noor::NetInterface::socket_type::UDP && FD_ISSET(channel, &fdList)) {
-                    //From UDP Server
-                    std::string ret("");
-                    //auto ret = udp_rx(udp_client_fd());
-                    std::cout << "line: " << __LINE__ << " Xreating issue " << std::endl;
-                    if(ret.length()) {
-                        //Got Response from UDP client
-                    }
-                }
+
                 //The TCP client might be connected
-                if(channel > 0 && type == noor::NetInterface::socket_type::TCP_ASYNC && FD_ISSET(channel, &fdWrite)) {
+                if(channel > 0 && type == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdWrite)) {
                     //TCP connection established successfully.
                     //Push changes if any now
                     //When the connection establishment (for non-blocking socket) encounters an error, the descriptor becomes both readable and writable (p. 530 of TCPv2).
@@ -1792,12 +2338,11 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                             FD_ZERO(&fdWrite);
                             std::cout << "line: " << __LINE__ << " Connected to server handle: " << inst->handle() << std::endl;
 
-			    auto it = std::find_if(intf_list.begin(), intf_list.end(), [&](const auto& ent) {
-			        auto type = std::get<1>(ent);
-			        return(noor::NetInterface::socket_type::UNIX == type);
-			    });
+                            auto it = std::find_if(services.begin(), services.end(), [&](const auto& ent) {
+                                return(noor::NetInterface::service_type::UNIX == std::get<1>(ent));
+                            });
 
-                            if(it!= intf_list.end() && !std::get<0>(*it)->response_cache().empty()) {
+                            if(it!= services.end() && !std::get<0>(*it)->response_cache().empty()) {
                                 for(const auto& ent: std::get<0>(*it)->response_cache()) {
                                     std::string payload = std::get<cache_element::RESPONSE>(ent);
 
@@ -1809,14 +2354,14 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                                         data.write (reinterpret_cast <char *>(&payload_len), sizeof(payload_len));
                                         data << payload;
                                         auto ret = inst->tcp_tx(payload);
-					std::cout << "line: " << __LINE__ << " sent to TCP Server data-length:"<< ret << std::endl;
+                                        std::cout << "line: " << __LINE__ << " sent to TCP Server data-length:"<< ret << std::endl;
                                     }
                                 }
                             }
                         }
                     }
                 }
-                if(channel > 0 && type == noor::NetInterface::socket_type::TCP_ASYNC && FD_ISSET(channel, &fdList)) {
+                if(channel > 0 && type == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdList)) {
                     //From TCP Server
                     std::string request("");
                     auto req = inst->tcp_rx(request);
@@ -1827,81 +2372,128 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                         inst->handle(-1);
                     } else {
                         //Got from TCP server 
-                        std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req << std::endl;
+                        std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req << " command: " << request << std::endl;
+                    }
+                }
+
+                //The TCP client might be connected
+                if(channel > 0 && type == noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdWrite)) {
+                    //TCP connection established successfully.
+                    //Push changes if any now
+                    //When the connection establishment (for non-blocking socket) encounters an error, the descriptor becomes both readable and writable (p. 530 of TCPv2).
+                    socklen_t optlen;
+                    std::int32_t optval = -1;
+                    optlen = sizeof (optval);
+                    if(!getsockopt(channel, SOL_SOCKET, SO_ERROR, &optval, &optlen)) {
+                        struct sockaddr_in peer;
+                        socklen_t sock_len = sizeof(peer);
+                        memset(&peer, 0, sizeof(peer));
+                        auto ret = getpeername(channel, (struct sockaddr *)&peer, &sock_len);
+                        if(ret < 0 && errno == ENOTCONN) {
+                            ::close(channel);
+                            inst->connected_client().erase(channel);
+                            inst->handle(-1);
+                        } else if(!ret) {
+                            //TCP Client is connected 
+                            inst->connected_client(noor::NetInterface::client_connection::Connected);
+                            FD_CLR(channel, &fdWrite);
+                            FD_ZERO(&fdWrite);
+                            std::cout << "line: " << __LINE__ << " Connected to server handle: " << inst->handle() << std::endl;
+                            // create command processing process using fork.
+                        }
+                    }
+                }
+                if(channel > 0 && type == noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdList)) {
+                    //From TCP Server
+                    std::string request("");
+                    auto req = inst->tcp_rx(request);
+                    std::cout << "line: "<< __LINE__ << " Response received from TCP Server length:" << req << std::endl;
+                    if(!req && inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
+                        ::close(channel);
+                        inst->connected_client().erase(channel);
+                        inst->handle(-1);
+                    } else {
+                        //Got from TCP server 
+                        std::cout <<"line: " << __LINE__ << " Received from TCP server for shell command length: " << req << std::endl;
                     }
                 }
             }
         }
         else if(!conns) {
             //time out happens
-            auto it = std::find_if(intf_list.begin(), intf_list.end(), [&](auto& ent) {
+            auto it = std::find_if(services.begin(), services.end(), [&](auto& ent) {
                 auto type = std::get<1>(ent);
-                return(type == noor::NetInterface::socket_type::TCP_ASYNC);
+                return(type == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC);
             });
-            if((it != intf_list.end()) && (std::get<0>(*it)->handle() < 0) && (!std::get<0>(*it)->get_config().at("protocol").compare("tcp"))) {
+            if((it != services.end()) && (std::get<0>(*it)->handle() < 0) && (!std::get<0>(*it)->get_config().at("protocol").compare("tcp"))) {
                 std::get<0>(*it)->tcp_client_async(std::get<0>(*it)->get_config().at("server-ip"), std::stoi(std::get<0>(*it)->get_config().at("server-port")));
             }
 
-            it = std::find_if(intf_list.begin(), intf_list.end(), [&](auto& ent) {
+            it = std::find_if(services.begin(), services.end(), [&](auto& ent) {
                 auto type = std::get<1>(ent);
-                return(type == noor::NetInterface::socket_type::UDP);
+                return(type == noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC);
             });
 
-            if(it != intf_list.end()  && !std::get<0>(*it)->get_config().at("protocol").compare("udp")) {
-                for(auto iter = std::get<0>(*it)->response_cache().begin(); iter != std::get<0>(*it)->response_cache().end(); ++iter) {
-                    std::string payload = std::get<4>(*iter);
-                    //don't push to TCP server If response is awaited.
-                    if(payload.compare("default")) {
-                        if(std::get<0>(*it)->udp_tx(payload) > 0) {
-                            //Sent successfully
-                            auto channel = std::get<0>(*it)->handle();
-                            iter = std::get<0>(*it)->response_cache().erase(iter);
-                        }
-                    }
-                }
+            if((it != services.end()) && (std::get<0>(*it)->handle() < 0) && (!std::get<0>(*it)->get_config().at("protocol").compare("tcp"))) {
+                std::get<0>(*it)->tcp_client_async(std::get<0>(*it)->get_config().at("server-ip"), 65344);
             }
+
         }
     } /* End of while loop */
 }
- 
-std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::vector<std::tuple<std::unique_ptr<noor::NetInterface>, noor::NetInterface::socket_type>> intf_list) {
+
+/**
+ * @brief 
+ * 
+ * @param timeout_in_ms 
+ * @param intf_list 
+ * @return * std::int32_t 
+ */
+std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, 
+                                              std::vector<std::tuple<std::unique_ptr<noor::NetInterface>, noor::NetInterface::service_type>> services) {
     int conns   = -1;
     fd_set readFd;
 
     while (1) {
+
         /* A timeout for 100ms*/ 
         struct timeval to;
         to.tv_sec = timeout_in_ms /1000;
         to.tv_usec = timeout_in_ms % 1000;
         FD_ZERO(&readFd);
 
-        for(const auto& [inst, type]: intf_list) {
+        for(const auto& [inst, type]: services) {
 
-            if(noor::NetInterface::socket_type::WEB == type && inst->handle() > 0) {
+            // For handling request from Web client
+            if(noor::NetInterface::service_type::TCP_WEB_APP_PROVIDER_SVC == type && inst->handle() > 0) {
                 FD_SET(inst->handle(), &readFd);
             }
             
-            if(noor::NetInterface::socket_type::TCP == type && inst->handle() > 0) {
+            // For Receiving Data from Data store
+            if(noor::NetInterface::service_type::TCP_DS_APP_PROVIDER_SVC == type && inst->handle() > 0) {
                 FD_SET(inst->handle(), &readFd);
             }
 
-            if(noor::NetInterface::socket_type::UNIX == type && inst->handle() > 0) {
+            // For receiving console command output
+            if(noor::NetInterface::service_type::TCP_CONSOLE_APP_PROVIDER_SVC == type && inst->handle() > 0) {
                 FD_SET(inst->handle(), &readFd);
             }
 
-            if(noor::NetInterface::socket_type::UDP == type && inst->handle() > 0) {
-                FD_SET(inst->handle(), &readFd);
-            }
-            
             if(!inst->web_connections().empty()) {
                 for(const auto& [key, value]: inst->web_connections()) {
-                    FD_SET(std::get<0>(value), &readFd);    
+                    auto channel = std::get<0>(value);
+                    if(channel > 0) { 
+                        FD_SET(channel, &readFd);
+                    }
                 }
             }
 
             if(!inst->tcp_connections().empty()) {
                 for(const auto& [key, value]: inst->tcp_connections()) {
-                    FD_SET(std::get<0>(value), &readFd);    
+                    auto channel = std::get<0>(value);
+                    if(channel > 0) { 
+                        FD_SET(channel, &readFd);
+                    }
                 }
             }
         }
@@ -1909,110 +2501,167 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms, std::
         conns = ::select(FD_SETSIZE, (fd_set *)&readFd, (fd_set *)NULL, (fd_set *)NULL, (struct timeval *)&to);
 
         if(conns > 0) {
-            for(const auto& [inst, type]: intf_list) {
-                if(type == noor::NetInterface::socket_type::TCP && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
+            for(const auto& [inst, type]: services) {
+
+                if(type == noor::NetInterface::service_type::TCP_DS_APP_PROVIDER_SVC && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
                     // accept a new connection 
                     struct sockaddr_in peer;
                     socklen_t peer_len = sizeof(peer);
                     auto newFd = ::accept(inst->handle(), (struct sockaddr *)&peer, &peer_len);
                     if(newFd > 0) {
                         std::string IP(inet_ntoa(peer.sin_addr));
-                        inst->tcp_connections().insert(std::make_pair(newFd, std::make_tuple(newFd, IP, ntohs(peer.sin_port), 0, 0, 0)));
-                        std::cout << "line: " << __LINE__ << " chnnel: " << newFd << " IP: " << IP <<" port:" << ntohs(peer.sin_port) << std::endl;
+                        inst->tcp_connections().insert(std::make_pair(newFd, std::make_tuple(newFd, IP, ntohs(peer.sin_port), TCP_DS_APP_PEER_CONNECTED_SVC, "", 0, 0, 0)));
+                        std::cout << "line: " << __LINE__ << " datastore channel: " << newFd << " IP: " << IP <<" port:" << ntohs(peer.sin_port) << std::endl;
                     }
                 }
-                if(type == noor::NetInterface::socket_type::WEB && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
+
+                if(type == noor::NetInterface::service_type::TCP_CONSOLE_APP_PROVIDER_SVC && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
                     // accept a new connection 
                     struct sockaddr_in peer;
                     socklen_t peer_len = sizeof(peer);
                     auto newFd = ::accept(inst->handle(), (struct sockaddr *)&peer, &peer_len);
                     if(newFd > 0) {
                         std::string IP(inet_ntoa(peer.sin_addr));
-                        inst->web_connections().insert(std::make_pair(newFd, std::make_tuple(newFd, IP, ntohs(peer.sin_port), 0, 0, 0)));
-                        std::cout << "line: " << __LINE__ << " chnnel: " << newFd << " IP: " << IP <<" port:" << ntohs(peer.sin_port) << std::endl;
+                        inst->tcp_connections().insert(std::make_pair(newFd, std::make_tuple(newFd, IP, ntohs(peer.sin_port), TCP_CONSOLE_APP_PEER_CONNECTED_SVC, "", 0, 0, 0)));
+                        std::cout << "line: " << __LINE__ << " console channel: " << newFd << " IP: " << IP <<" port:" << ntohs(peer.sin_port) << std::endl;
                     }
                 }
-                if(type == noor::NetInterface::socket_type::UNIX && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
+
+                if(type == noor::NetInterface::service_type::TCP_WEB_APP_PROVIDER_SVC && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
                     // accept a new connection 
-                    struct sockaddr_un peer;
+                    struct sockaddr_in peer;
                     socklen_t peer_len = sizeof(peer);
                     auto newFd = ::accept(inst->handle(), (struct sockaddr *)&peer, &peer_len);
                     if(newFd > 0) {
-                        std::string IP(peer.sun_path);
-                        inst->unix_connections().insert(std::make_pair(newFd, std::make_tuple(newFd, IP, 0, 0, 0, 0)));
-                    }
-                }
-                if(type == noor::NetInterface::socket_type::UDP && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
-                    std::string response("");
-                    auto res = inst->udp_rx(response);
-                    if(!res) {
-                        std::cout << "line: " << __LINE__ << " Received from UDP Client " << std::endl;
-                        std::cout << "line: " << __LINE__ << " Response: " << response;
+                        std::string IP(inet_ntoa(peer.sin_addr));
+                        inst->web_connections().insert(std::make_pair(newFd, std::make_tuple(newFd, IP, ntohs(peer.sin_port), TCP_WEB_APP_PEER_CONNECTED_SVC, "", 0, 0, 0)));
+                        std::cout << "line: " << __LINE__ << " web channel: " << newFd << " IP: " << IP <<" port:" << ntohs(peer.sin_port) << std::endl;
                     }
                 }
                 
                 if(!inst->tcp_connections().empty()) {
-                    for(const auto &[key, value]: inst->tcp_connections()) {
+                    for(auto &[key, value]: inst->tcp_connections()) {
                         auto channel = std::get<0>(value);
+                        auto svc_type = std::get<3>(value);
+
                         if(channel > 0 && FD_ISSET(channel, &readFd)) {
                             //From TCP Client
                             std::string request("");
                             std::cout << "line: "<< __LINE__ << " Response received from TCP client: " << std::endl;
-                            auto req = inst->tcp_rx(channel, request);
+                            auto req = inst->tcp_rx(channel, request, svc_type);
                             if(!req) {
                                 //client is closed now
-                                std::cout << "line: " << __LINE__ << " req.length: " << request.length() <<std::endl; 
+                                std::cout << "line: " << __LINE__ << " req.length: " << request.length() << " service_type: " << svc_type << std::endl; 
                                 ::close(channel);
-                                auto it = inst->tcp_connections().erase(channel);
+                                std::get<0>(value) = -1;
+                                FD_CLR(channel, &readFd);
+                                //inst->tcp_connections().erase(channel);
                             } else {
                                 std::cout << "line: " << __LINE__ << " Data TCP Server Received: " << request << std::endl;
+                                if(TCP_DS_APP_PEER_CONNECTED_SVC == svc_type) {
+                                   noor::CommonResponse::instance().response(channel, request);
+
+                                } else if(TCP_CONSOLE_APP_PEER_CONNECTED_SVC == svc_type) {
+                                    // This response to be sent to web client
+                                    auto it = std::find_if(services.begin(), services.end(), [&](auto& ent) -> bool {
+                                        return(std::get<1>(ent) == TCP_WEB_APP_PROVIDER_SVC);
+                                    });
+
+                                    if(it != services.end()) {
+                                        auto& webInst = *std::get<0>(*it);
+                                        auto iter = std::find_if(webInst.web_connections().begin(), webInst.web_connections().end(), [&](const auto& ent) -> bool {
+                                            return(std::get<4>(ent.second) == std::get<1>(value));
+                                        });
+
+                                        if(iter != webInst.web_connections().end()) {
+                                            std::cout << "line: " << __LINE__ << " sending to web-client" << std::endl;
+                                            //send to web-client
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                
+                std::erase_if(inst->tcp_connections(), [](auto& ent) {
+                    return(std::get<0>(ent.second) == -1);
+                });
+
                 if(!inst->web_connections().empty()) {
-                    for(const auto &[key, value]: inst->web_connections()) {
+                    for(auto &[key, value]: inst->web_connections()) {
                         auto channel = std::get<0>(value);
                         if(channel > 0 && FD_ISSET(channel, &readFd)) {
                             //From Web Client 
                             std::string request("");
-                            std::cout <<"line: " << __LINE__ << " Request from Web client received on channel "<< channel << std::endl;
                             auto req = inst->web_rx(channel, request);
                             if(!req) {
-                                std::cout << "line: " << __LINE__ << " req.length: " << request.length() <<std::endl; 
+                                std::cout << "line: " << __LINE__ << " req.length: " << request.length() << " channel: " << channel << " closing now "<<std::endl; 
                                 //client is closed now 
                                 ::close(channel);
-                                auto it = inst->web_connections().erase(channel);
+                                std::get<0>(value) = -1;
+                                FD_CLR(channel, &readFd);
+                                //auto it = inst->web_connections().erase(channel);
                             } else {
-                                std::cout << "line: " << __LINE__ << " Data WEB Server Received: " << request << std::endl;
-				Http http(request);
-				auto rsp = build_web_response(http);
-				auto ret = web_tx(channel, rsp);
-			    }
-                        }
-                    }
-                }
-                if(!inst->unix_connections().empty()) {
-                    for(const auto &[key, value]: inst->web_connections()) {
-                        auto channel = std::get<0>(value);
-                        if(channel > 0 && FD_ISSET(channel, &readFd)) {
-                            //From Web Client 
-                            std::string request("");
-                            std::cout <<"line: " << __LINE__ << " Request from Web client received on channel "<< channel << std::endl;
-                            auto req = uds_rx();
-                            if(!req.m_response.length()) {
-                                //client is closed now 
-                                ::close(channel);
-                                auto it = inst->unix_connections().erase(channel);
+                                std::cout << "line: " << __LINE__ << " Request from Web client channel: " << channel <<" Received: " << request << std::endl;
+                                Http http(request);
+                                //auto rsp = build_web_response(http);
+                                auto rsp = process_web_request(request);
+                                if(rsp.length()) {
+
+                                    if(http.value("command").length()) {
+                                        // This is the Console command to be Executed pass o this over TCP to Device for a given IP.
+                                        std::string IP  = http.value("ipAddress");
+                                        std::int32_t tcp_channel = -1;
+
+                                        auto iter = std::find_if(services.begin(), services.end(), [&](auto& ent) {
+                                            return(std::get<1>(ent) == TCP_CONSOLE_APP_PROVIDER_SVC);
+                                        });
+                                        
+                                        if(iter != services.end()) {
+                                             auto& tcpInst = *std::get<0>(*iter);
+                                             auto it = std::find_if(tcpInst.tcp_connections().begin(), tcpInst.tcp_connections().end(), [&](auto& elm) -> bool {
+                                                if(std::get<3>(elm.second) == TCP_CONSOLE_APP_PEER_CONNECTED_SVC && !(std::get<1>(elm.second).compare(IP))) {
+                                                    // learn the IP of web-client
+                                                    std::get<4>(elm.second) = std::get<1>(value);
+                                                    tcp_channel = std::get<0>(elm.second);
+                                                    return(true);
+                                                }
+                                                return(false);
+                                             });
+
+                                             if(it != tcpInst.tcp_connections().end()) {
+                                                 std::string command = http.value("command");
+                                                 std::int32_t ret = tcp_tx(tcp_channel, command);    
+                                             }
+                                            
+                                        }
+                                    }
+
+                                    auto ret = web_tx(channel, rsp);
+                                }
                             }
                         }
                     }
                 }
+                // get rid of all entries whose fd is -1 
+                std::erase_if(inst->web_connections(), [](auto& ent) {
+                    return(std::get<0>(ent.second) == -1);
+                });
             }
+
         } /*conns > 0*/
     } /* End of while loop */
 }
 
+/**
+ * @brief 
+ * 
+ * @param cmd_type 
+ * @param cmd 
+ * @param req 
+ * @return std::string 
+ */
 std::string noor::NetInterface::serialise(noor::Uniimage::EMP_COMMAND_TYPE cmd_type, noor::Uniimage::EMP_COMMAND_ID cmd, const std::string& req) {
     cmd = (noor::Uniimage::EMP_COMMAND_ID)(((cmd_type & 0x3 ) << 12) | (cmd & 0xFFF));
 
@@ -2031,6 +2680,14 @@ std::string noor::NetInterface::serialise(noor::Uniimage::EMP_COMMAND_TYPE cmd_t
     return(data.str());
 }
 
+/**
+ * @brief 
+ * 
+ * @param prefix 
+ * @param fields 
+ * @param filter 
+ * @return std::string 
+ */
 std::string noor::NetInterface::packArguments(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter) {
     std::stringstream rsp("");
     std::string result("");
@@ -2083,6 +2740,14 @@ std::string noor::NetInterface::packArguments(const std::string& prefix, std::ve
     return(result);
 }
 
+/**
+ * @brief 
+ * 
+ * @param prefix 
+ * @param fields 
+ * @param filter 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::registerGetVariable(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter) {
     noor::Uniimage::EMP_COMMAND_TYPE cmd_type = noor::Uniimage::EMP_COMMAND_TYPE::Request;
     noor::Uniimage::EMP_COMMAND_ID cmd = noor::Uniimage::EMP_COMMAND_ID::RegisterGetVariable;
@@ -2090,13 +2755,19 @@ std::int32_t noor::NetInterface::registerGetVariable(const std::string& prefix, 
     std::string rsp = packArguments(prefix, fields, filter);
     std::string data = serialise(cmd_type, cmd, rsp);
     std::int32_t ret = uds_tx(data);
-    std::string response;
+    std::string response("");
     add_element_to_cache({cmd_type, cmd, message_id(), prefix, response}); 
     is_register_variable(false);
     return(ret);
 
 }
 
+/**
+ * @brief 
+ * 
+ * @param prefix 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::getSingleVariable(const std::string& prefix) {
     noor::Uniimage::EMP_COMMAND_TYPE cmd_type = noor::Uniimage::EMP_COMMAND_TYPE::Request;
     noor::Uniimage::EMP_COMMAND_ID cmd = noor::Uniimage::EMP_COMMAND_ID::SingleGetVariable;
@@ -2104,12 +2775,20 @@ std::int32_t noor::NetInterface::getSingleVariable(const std::string& prefix) {
     std::string rsp = packArguments(prefix);
     std::string data = serialise(cmd_type, cmd, rsp);
     std::int32_t ret = uds_tx(data); 
-    std::string response;
+    std::string response("");
     add_element_to_cache({cmd_type, cmd, message_id(), prefix, response}); 
     
     return(ret);
 }
 
+/**
+ * @brief 
+ * 
+ * @param prefix 
+ * @param fields 
+ * @param filter 
+ * @return std::int32_t 
+ */
 std::int32_t noor::NetInterface::getVariable(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter) {
     noor::Uniimage::EMP_COMMAND_TYPE cmd_type = noor::Uniimage::EMP_COMMAND_TYPE::Request;
     noor::Uniimage::EMP_COMMAND_ID cmd = noor::Uniimage::EMP_COMMAND_ID::GetVariable;
@@ -2117,14 +2796,20 @@ std::int32_t noor::NetInterface::getVariable(const std::string& prefix, std::vec
     std::string rsp = packArguments(prefix, fields, filter);
     std::string data = serialise(cmd_type, cmd, rsp);
     std::int32_t ret = uds_tx(data);
-    std::string response;
+    std::string response("");
     add_element_to_cache({cmd_type, cmd, message_id(), prefix, response});
     return(ret);
 }
 
-std::int32_t TcpClient::onReceive(std::string in) {
+/**
+ * @brief 
+ * 
+ * @param in 
+ * @return std::int32_t 
+ */
+std::string TcpClient::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t TcpClient::onClose(std::string in) {
@@ -2132,9 +2817,9 @@ std::int32_t TcpClient::onClose(std::string in) {
     return(0);
 }
 
-std::int32_t UdpClient::onReceive(std::string in) {
+std::string UdpClient::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t UdpClient::onClose(std::string in) {
@@ -2142,9 +2827,9 @@ std::int32_t UdpClient::onClose(std::string in) {
     return(0);
 }
 
-std::int32_t UnixClient::onReceive(std::string in) {
+std::string UnixClient::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t UnixClient::onClose(std::string in) {
@@ -2152,9 +2837,9 @@ std::int32_t UnixClient::onClose(std::string in) {
     return(0);
 }
 
-std::int32_t TcpServer::onReceive(std::string in) {
+std::string TcpServer::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t TcpServer::onClose(std::string in) {
@@ -2162,9 +2847,9 @@ std::int32_t TcpServer::onClose(std::string in) {
     return(0);
 }
 
-std::int32_t UdpServer::onReceive(std::string in) {
+std::string UdpServer::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t UdpServer::onClose(std::string in) {
@@ -2172,9 +2857,9 @@ std::int32_t UdpServer::onClose(std::string in) {
     return(0);
 }
 
-std::int32_t WebServer::onReceive(std::string in) {
+std::string WebServer::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t WebServer::onClose(std::string in) {
@@ -2182,14 +2867,73 @@ std::int32_t WebServer::onClose(std::string in) {
     return(0);
 }
 
-std::int32_t UnixServer::onReceive(std::string in) {
+std::string UnixServer::onReceive(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
-    return(0);
+    return(std::string());
 }
 
 std::int32_t UnixServer::onClose(std::string in) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << std::endl;
     return(0);
 }
+
+
+
+std::uint32_t from_json_element_to_string(const std::string json_obj, const std::string key, std::string& str_out)
+{
+
+  bsoncxx::document::value doc_val = bsoncxx::from_json(json_obj.c_str());
+  bsoncxx::document::view doc = doc_val.view();
+
+  auto it = doc.find(key);
+  if(it == doc.end()) {
+    std::cout << "line: " << __LINE__ << "key: " << key;
+    str_out.clear();
+    return(1);    
+  }
+
+  bsoncxx::document::element elm_value = *it;
+  if(elm_value && bsoncxx::type::k_utf8 == elm_value.type()) {
+      std::string elm(elm_value.get_utf8().value.data(), elm_value.get_utf8().value.length());
+      str_out.assign(elm);
+  } else {
+    str_out.clear();
+  }
+  
+  return(0);
+}
+
+std::uint32_t from_json_array_to_map(const std::string json_obj, std::unordered_map<std::string, std::string>& out)
+{
+    bsoncxx::document::value doc_val = bsoncxx::from_json(json_obj.c_str());
+    bsoncxx::document::view doc = doc_val.view();
+    auto key="element";
+    
+    auto it = doc.find(key);
+    if(it == doc.end()) {
+        std::cout << "line: " << __LINE__ << " key: " << key << std::endl;
+        return(1);    
+    }
+
+    bsoncxx::document::element elm_value = *it;
+
+    if(elm_value && bsoncxx::type::k_array == elm_value.type()) {
+        bsoncxx::array::view to(elm_value.get_array().value);
+        std::cout << "line: " << __LINE__ << " document type is array" << std::endl;
+        for(bsoncxx::array::element elm : to) {
+          if(bsoncxx::type::k_document == elm.type()) {
+            std::cout << "line: " << __LINE__ << " document type is document" << std::endl;
+            auto doc = elm.get_document().value;
+            auto it = doc.find("key");
+            if(it != doc.end()) {
+                std::cout << "line: " << __LINE__ << " value: " << doc["key"].get_utf8().value.data() << std::endl;
+            }
+          }
+        }
+    }
+  
+    return(0);
+}
+
 
 #endif /* __uniimage__cc__ */
