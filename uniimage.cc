@@ -2882,6 +2882,7 @@ std::int32_t UnixServer::onClose(std::string in) {
 std::uint32_t from_json_element_to_string(const std::string json_obj, const std::string key, std::string& str_out)
 {
 
+#if 0
   bsoncxx::document::value doc_val = bsoncxx::from_json(json_obj.c_str());
   bsoncxx::document::view doc = doc_val.view();
 
@@ -2899,12 +2900,13 @@ std::uint32_t from_json_element_to_string(const std::string json_obj, const std:
   } else {
     str_out.clear();
   }
-  
+#endif  
   return(0);
 }
 
 std::uint32_t from_json_array_to_map(const std::string json_obj, std::unordered_map<std::string, std::string>& out)
 {
+#if 0    
     bsoncxx::document::value doc_val = bsoncxx::from_json(json_obj.c_str());
     bsoncxx::document::view doc = doc_val.view();
     auto key="element";
@@ -2931,7 +2933,7 @@ std::uint32_t from_json_array_to_map(const std::string json_obj, std::unordered_
           }
         }
     }
-  
+#endif  
     return(0);
 }
 

@@ -35,6 +35,7 @@
 #include <getopt.h>
 #include <atomic>
 
+#if 0
 #include <bsoncxx/json.hpp>
 #include <bsoncxx/types.hpp>
 #include <bsoncxx/builder/stream/helpers.hpp>
@@ -42,7 +43,7 @@
 #include <bsoncxx/builder/stream/array.hpp>
 #include <bsoncxx/stdx/string_view.hpp>
 #include <bsoncxx/string/to_string.hpp>
-
+#endif
 
 #include "http.hpp"
 
