@@ -1044,11 +1044,17 @@ int main(std::int32_t argc, char *argv[]) {
         }
         ent.push_back({std::make_unique<UnixClient>(), noor::NetInterface::service_type::UNIX});
 
-        std::get<0>(ent.at(1))->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
-        std::get<0>(ent.at(1))->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
-        std::get<0>(ent.at(1))->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
+        std::get<0>(ent.at(0))->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
+        std::get<0>(ent.at(0))->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
+        std::get<0>(ent.at(0))->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
         std::cout << "line: " << __LINE__ << " TCP_ASYNC: " << std::get<0>(ent.at(0))->handle() << " : " <<std::get<0>(ent.at(0))->connected_client(std::get<0>(ent.at(0))->handle())<< std::endl;
-        unimanage.start_client(100, std::move(ent));
+
+        auto timeout = 100;
+        if(config["time-out"].length()) {
+            timeout = std::stoi(config["time-out"]);
+        }
+
+        unimanage.start_client(timeout, std::move(ent));
 
         #if 0
         unimanage.getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
@@ -1068,7 +1074,13 @@ int main(std::int32_t argc, char *argv[]) {
         }
         
         ent.push_back({std::make_unique<WebServer>(config, noor::NetInterface::service_type::TCP_WEB_APP_PROVIDER_SVC), noor::NetInterface::service_type::TCP_WEB_APP_PROVIDER_SVC});
-        unimanage.start_server(100, std::move(ent));
+
+        auto timeout = 100;
+        if(config["time-out"].length()) {
+            timeout = std::stoi(config["time-out"]);
+        }
+
+        unimanage.start_server(timeout, std::move(ent));
     }
 }
 
