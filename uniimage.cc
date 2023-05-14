@@ -3017,29 +3017,32 @@ ACE_INT32 ServiceHandler::handle_input(ACE_HANDLE handle) {
    });
 
    if(it != m_connectors.end()) {
+       std::string data("");
        // 
        switch(std::get<3>(*it)) {
            case SERVICE_DS_UNIX:
            {
                //Follow EMP Protocol While receiving.
+               auto ret = CommonHandler::instance().unix_rx(handle, data);
            }
            break;
 
            case SERVICE_DS_TCP:
            {
-
+               auto ret = CommonHandler::instance().tcp_rx(handle, data);
            }
            break;
 
            case SERVICE_SHELL_TCP:
            {
-
+               auto ret = CommonHandler::instance().shell_rx(handle, data);
            }
            break;
 
            case SERVICE_WEB:
            {
                //Follow HTTP Protocol While Receiving
+               auto ret = CommonHandler::instance().web_rx(handle, data);
            }
            break;
 
@@ -3231,7 +3234,46 @@ ACE_INT32 CommonHandler::shell_rx(ACE_HANDLE fd, std::string& data {
  */
 ACE_INT32 ConnectedServices::handle_input(ACE_HANDLE handle) {
 
-    auto it = m_connec
+   it = std::find_if(m_connectedServices.begin(), m_connectedServices.end(), [&](const auto& ent) -> bool {
+    return(handle == ent.first);
+   });
+
+   if(it != m_connectedServices.end()) {
+       std::string data("");
+       // 
+       switch(std::get<3>(*it)) {
+           case SERVICE_DS_UNIX:
+           {
+               //Follow EMP Protocol While receiving.
+               auto ret = CommonHandler::instance().unix_rx(handle, data);
+           }
+           break;
+
+           case SERVICE_DS_TCP:
+           {
+               auto ret = CommonHandler::instance().tcp_rx(handle, data);
+           }
+           break;
+
+           case SERVICE_SHELL_TCP:
+           {
+               auto ret = CommonHandler::instance().shell_rx(handle, data);
+           }
+           break;
+
+           case SERVICE_WEB:
+           {
+               //Follow HTTP Protocol While Receiving
+               auto ret = CommonHandler::instance().web_rx(handle, data);
+           }
+           break;
+
+           default:
+           {
+
+           }
+       }
+   }
 }
 
 #endif /* __uniimage__cc__ */

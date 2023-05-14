@@ -797,11 +797,9 @@ class CommonHandler {
 
         ~CommonHandler() {}
 
-        static std::shared_ptr<CommonHandler> instance() {
-            if(nullptr == m_instance) {
-                m_instance = std::make_shared<CommonHandler>();
-            }
-            return(m_instance);
+        static CommonHandler instance() {
+            static CommonHandler inst;
+            return(inst);
         }
 
         ACE_INT32 web_rx(ACE_HANDLE fd, std::string& data);
@@ -810,9 +808,8 @@ class CommonHandler {
         ACE_INT32 shell_rx(ACE_HANDLE fd, std::string& data);
 
     private:
-        CommonHandler() : m_instance(nullptr) {}
+        CommonHandler() = default;
         
-        static std:shared_ptr<CommonHandler> m_instance;
 };
 
 class ConnectedServices : public ACE_Event_Handler {
