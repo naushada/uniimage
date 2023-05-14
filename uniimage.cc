@@ -2937,5 +2937,301 @@ std::uint32_t from_json_array_to_map(const std::string json_obj, std::unordered_
     return(0);
 }
 
+/*
+ ____                  _          _   _                 _ _           
+/ ___|  ___ _ ____   _(_) ___ ___| | | | __ _ _ __   __| | | ___ _ __ 
+\___ \ / _ \ '__\ \ / / |/ __/ _ \ |_| |/ _` | '_ \ / _` | |/ _ \ '__|
+ ___) |  __/ |   \ V /| | (_|  __/  _  | (_| | | | | (_| | |  __/ |   
+|____/ \___|_|    \_/ |_|\___\___|_| |_|\__,_|_| |_|\__,_|_|\___|_|
+
+*/
+
+ACE_INT32 ServiceHandler::complete(ACE_SOCK_Stream &new_stream, ACE_Addr *remote_sap, const ACE_Time_Value *timeout) {
+
+}
+
+ACE_INT32 ServiceHandler::handle_timeout(const ACE_Time_Value &tv, const void *act) {
+
+}
+
+/**
+ * @brief This method will beinvoked/called when a client is establishing new connection or
+ *        Data is received on already established connection. 
+ * 
+ * @param handle 
+ * @return ACE_INT32 
+ */
+ACE_INT32 ServiceHandler::handle_input(ACE_HANDLE handle) {
+    ACE_INET_Addr peerAddr;
+
+    /*___                           
+    / ___|  ___ _ ____   _____ _ __ 
+    \___ \ / _ \ '__\ \ / / _ \ '__|
+     ___) |  __/ |   \ V /  __/ |   
+    |____/ \___|_|    \_/ \___|_|   
+    */
+    // If role=server then accept new connection.
+    auto it = std::find_if(m_acceptors.begin(), m_acceptors.end(), [&](auto& ent) -> bool {
+        if(handle == std::get<2>(ent).get_handle()) {
+            // Accept new connection now.
+            if(std::get<2>(ent).accept(std::get<0>(ent), &peerAddr)) {
+                // accept failed
+                return(false);
+            }
+            // new connection is accepted successfully.
+            return(true);
+        }
+        return(false);
+    });
+
+    if(it != m_acceptors.end()) {
+
+        //create connected client list.
+        auto channel = (std::get<0>(*it)).get_handle();
+        auto svcType = std::get<3>(*it);
+        auto result = m_connectedServices.insert(std::make_pair(channel, ConnectedServices(channel, peerAddr, svcType)));
+        if(!result.second) {
+            //
+            ACE_DEBUG((LM_DEBUG, ACE_TEXT("%D [Acceptor:%t] %M %N:%l insersion to m_connectedServices failed for channel: %d from port: %d from Host: %s\n"), 
+                               channel, peerAddr.get_port_number(), peerAddr.get_host_name()));
+        } else {
+            //Register seperate connection handler 
+            ACE_Reactor::instance()->register_handler(channel, m_connectedServices[channel], 
+                                                    ACE_Event_Handler::READ_MASK | 
+                                                    ACE_Event_Handler::TIMER_MASK |
+                                                    ACE_Event_Handler::SIGNAL_MASK);
+        }
+        return(0);
+
+    }
+    
+    /*____ _ _            _   
+     / ___| (_) ___ _ __ | |_ 
+    | |   | | |/ _ \ '_ \| __|
+    | |___| | |  __/ | | | |_ 
+     \____|_|_|\___|_| |_|\__|
+    */
+
+   it = std::find_if(m_connectors.begin(), m_connectors.end(), [&](const auto& ent) -> bool {
+    return(handle == (std::get<0>(ent)).get_handle());
+   });
+
+   if(it != m_connectors.end()) {
+       // 
+       switch(std::get<3>(*it)) {
+           case SERVICE_DS_UNIX:
+           {
+               //Follow EMP Protocol While receiving.
+           }
+           break;
+
+           case SERVICE_DS_TCP:
+           {
+
+           }
+           break;
+
+           case SERVICE_SHELL_TCP:
+           {
+
+           }
+           break;
+
+           case SERVICE_WEB:
+           {
+               //Follow HTTP Protocol While Receiving
+           }
+           break;
+
+           default:
+           {
+
+           }
+       }
+   }
+}
+
+ACE_INT32 ServiceHandler::handle_signal(int signum, siginfo_t *s, ucontext_t *u) {
+
+}
+
+ACE_INT32 ServiceHandler::handle_close (ACE_HANDLE handle, ACE_Reactor_Mask mask) {
+
+}
+
+ACE_INT32 CommonHandler::web_rx(ACE_HANDLE fd, std::string& data) {
+    std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << " handle:" << channel <<std::endl;
+    std::array<char, 2048> arr;
+    arr.fill(0);
+    std::int32_t len = -1;
+    len = recv(channel, arr.data(), arr.size(), 0);
+    if(!len) {
+        std::cout << "function: "<<__FUNCTION__ << " line: " << __LINE__ << " channel: " << channel << " be closed" << std::endl;
+        return(len);
+
+    } else if(len > 0) {
+        std::string ss(arr.data(), len);
+        std::cout << "HTTP:" << std::endl << ss << std::endl;
+        Http http(ss);
+        std::cout << "line: " << __LINE__ << " URI: "   << http.uri()    << std::endl;
+        std::cout << "line: " << __LINE__ << " Header " << http.header() << std::endl;
+        std::cout << "line: " << __LINE__ << " Body "   << http.body()   << std::endl;
+        std::uint32_t offset = 0;
+        auto cl = http.value("Content-Length");
+        size_t payload_len = 0;
+
+        if(!cl.length()) {
+            std::cout << "line: " << __LINE__ << " Content-Length is not present" << std::endl;
+            data = ss;
+            return(data.length());
+
+        } else {
+            std::cout << "function: "<< __FUNCTION__ << " line: " << __LINE__ <<" value of Content-Length " << cl << std::endl;
+            payload_len = std::stoi(cl);
+            if(len == (payload_len + http.header().length())) {
+                //We have received the full HTTP packet
+                data = ss;
+                return(data.length());
+
+            } else {
+                //compute the effective length
+                payload_len = (std::stoi(cl) + http.header().length() - len);
+                std::unique_ptr<char[]> payload = std::make_unique<char[]>(payload_len);
+                std::int32_t tmp_len = 0;
+                do {
+                    tmp_len = recv(channel, (void *)(payload.get() + offset), (size_t)(payload_len - offset), 0);
+                    if(tmp_len < 0) {
+                        offset = len;
+                        break;
+                    }
+                    offset += tmp_len;
+                    
+                } while(offset != payload_len);
+
+                if(offset == payload_len) {
+                    std::string header(arr.data(), len);
+                    std::string ss((char *)payload.get(), payload_len);
+                    std::string request = header + ss;
+                    std::cout << "function: "<<__FUNCTION__ <<" line: " <<__LINE__ << " From Web Client Received: " << request << std::endl;
+                    data = ss;
+                    return(data.length());
+                }
+            }
+        }
+    }
+    return(0);
+}
+
+ACE_INT32 CommonHandler::tcp_rx(ACE_HANDLE channeel, std::string& data) {
+    std::array<char, 8> arr;
+    arr.fill(0);
+    std::int32_t len = -1;
+
+    //read 4 bytes - the payload length
+    len = ::recv(channel, arr.data(), sizeof(std::int32_t), 0);
+    if(!len) {
+        std::cout << "line: " << __LINE__ << " channel: " << channel << " closed " << std::endl;
+        return(len);
+
+    } else if(len > 0) {
+        
+        std::uint32_t payload_len; 
+        std::istringstream istrstr;
+
+        istrstr.rdbuf()->pubsetbuf(arr.data(), len);
+        istrstr.read(reinterpret_cast<char *>(&payload_len), sizeof(payload_len));
+
+        std::int32_t offset = 0;
+        payload_len = ntohl(payload_len);
+        std::unique_ptr<char[]> payload = std::make_unique<char[]>(payload_len);
+
+        do {
+
+            len = recv(channel, (void *)(payload.get() + offset), (size_t)(payload_len - offset), 0);
+            if(len < 0) {
+                offset = len;
+                break;
+            }
+            offset += len;
+
+        } while(offset != payload_len);
+                
+        if(offset == payload_len) {
+            std::string ss((char *)payload.get(), payload_len);
+            data.assign(ss);
+            return(payload_len);
+        }
+    }
+
+    return(0);
+}
+
+emp_t CommonHandler::unix_rx(ACE_HANDLE channel, std::string& data) {
+    std::uint16_t command;
+    std::uint16_t message_id;
+    std::uint32_t payload_size;
+    std::uint16_t type;
+    std::string response;
+    std::array<char, 16> arr; 
+    std::uint8_t EMP_HDR_SIZE = 8;
+    arr.fill(0);
+
+    auto len = recv(channel, arr.data(), EMP_HDR_SIZE, 0);
+    if(len == EMP_HDR_SIZE) {
+        //parse emp header
+        std::istringstream istrstr;
+        istrstr.rdbuf()->pubsetbuf(arr.data(), len);
+        istrstr.read(reinterpret_cast<char *>(&command), sizeof(command));
+        command = ntohs(command);
+        type = (command >> 14) & 0x3;
+        command &= 0xFFF;
+        istrstr.read(reinterpret_cast<char *>(&message_id), sizeof(message_id));
+        istrstr.read(reinterpret_cast<char *>(&payload_size), sizeof(payload_size));
+        message_id = ntohs(message_id);
+        payload_size = ntohl(payload_size);
+
+        std::cout <<std::endl << "type: " << type << " command: " << command << " message_id: " << message_id << " payload_size: " << payload_size << std::endl;
+        std::uint32_t offset = 0;
+        std::unique_ptr<char[]> payload = std::make_unique<char[]>(payload_size);
+
+        do {
+
+            len = recv(channel, (void *)(payload.get() + offset), (size_t)(payload_size - offset), 0);
+            if(len < 0) {
+                break;
+            }
+            offset += len;
+
+        } while(offset != payload_size);
+
+        if(offset == payload_size) {
+            std::string ss((char *)payload.get(), payload_size);
+            std::cout << "Payload: " << ss << std::endl;
+            emp_t res;
+            res.m_type = type;
+            res.m_command = command;
+            res.m_message_id = message_id;
+            res.m_response = ss;
+            return(res);
+        }
+    }
+
+    return(emp_t {});
+}
+
+ACE_INT32 CommonHandler::shell_rx(ACE_HANDLE fd, std::string& data {
+
+}
+
+/**
+ * @brief 
+ * 
+ * @param handle 
+ * @return ACE_INT32 
+ */
+ACE_INT32 ConnectedServices::handle_input(ACE_HANDLE handle) {
+
+    auto it = m_connec
+}
 
 #endif /* __uniimage__cc__ */

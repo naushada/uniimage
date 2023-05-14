@@ -35,6 +35,26 @@
 #include <getopt.h>
 #include <atomic>
 
+
+#include "ace/Reactor.h"
+#include "ace/Basic_Types.h"
+#include "ace/Event_Handler.h"
+#include "ace/Task.h"
+#include "ace/INET_Addr.h"
+#include "ace/SOCK_Stream.h"
+#include "ace/SOCK_Acceptor.h"
+#include "ace/Task_T.h"
+#include "ace/Timer_Queue_T.h"
+#include "ace/Reactor.h"
+#include "ace/OS_Memory.h"
+#include "ace/Thread_Manager.h"
+#include "ace/Get_Opt.h"
+#include "ace/Signal.h"
+#include "ace/SSL/SSL_SOCK.h"
+#include "ace/SSL/SSL_SOCK_Stream.h"
+#include "ace/SSL/SSL_SOCK_Connector.h"
+#include "ace/Semaphore.h"
+
 #if 0
 #include <bsoncxx/json.hpp>
 #include <bsoncxx/types.hpp>
@@ -679,5 +699,250 @@ class UnixServer: public noor::NetInterface {
         virtual std::string onReceive(std::string in) override;
         virtual std::int32_t onClose(std::string in) override;
 };
+
+#if 0
+class MicroServices : public ACE_Task<ACE_MT_SYNCH> {
+    public:
+
+        int svc(void) override;
+        int open(void *args=0) override;
+        int close(u_long flags=0) override;
+
+        ACE_INT32 handle_signal(int signum, siginfo_t *s, ucontext_t *u) override;
+
+        MicroServices(ACE_Thread_Manager *thrMgr);
+        virtual ~MicroServices();
+};
+
+class DatastoreConnectionHandler : public ACE_Event_Handler {
+    public:
+        DatastoreConnectionHandler(const std::unordered_map<std::string, std::string>& config);
+        DatastoreConnectionHandler();
+        virtual ~DatastoreConnectionHandler();
+
+        ACE_INT32 handle_timeout(const ACE_Time_Value &tv, const void *act=0) override;
+        ACE_INT32 handle_input(ACE_HANDLE handle) override;
+        ACE_INT32 handle_signal(int signum, siginfo_t *s = 0, ucontext_t *u = 0) override;
+        ACE_INT32 handle_close (ACE_HANDLE = ACE_INVALID_HANDLE, ACE_Reactor_Mask = 0) override;
+        ACE_HANDLE get_handle() const override;
+    private:
+        ACE_SOCK_Stream m_stream;
+        ACE_INET_Addr m_listen;
+        ACE_SOCK_Acceptor m_server;
+        std::shared_ptr<WebConnectionHandler> m_webConn;
+};
+
+class ConsoleConnectionHandler : public ACE_Event_Handler {
+    public:
+        ConsoleConnectionHandler(const std::unordered_map<std::string, std::string>& config);
+        ConsoleConnectionHandler();
+        virtual ~ConsoleConnectionHandler();
+    
+        ACE_INT32 handle_timeout(const ACE_Time_Value &tv, const void *act=0) override;
+        ACE_INT32 handle_input(ACE_HANDLE handle) override;
+        ACE_INT32 handle_signal(int signum, siginfo_t *s = 0, ucontext_t *u = 0) override;
+        ACE_INT32 handle_close (ACE_HANDLE = ACE_INVALID_HANDLE, ACE_Reactor_Mask = 0) override;
+        ACE_HANDLE get_handle() const override;
+    private:
+        ACE_SOCK_Stream m_stream;
+        ACE_INET_Addr m_listen;
+        ACE_SOCK_Acceptor m_server;
+        std::shared_ptr<WebConnectionHandler> m_webConn;
+
+};
+
+class WebConnectionHandler : public ACE_Event_Handler {
+    public:
+        WebConnectionHandler(const std::unordered_map<std::string, std::string>& config);
+        WebConnectionHandler();
+        virtual ~WebConnectionHandler();
+    
+        ACE_INT32 handle_timeout(const ACE_Time_Value &tv, const void *act=0) override;
+        ACE_INT32 handle_input(ACE_HANDLE handle) override;
+        ACE_INT32 handle_signal(int signum, siginfo_t *s = 0, ucontext_t *u = 0) override;
+        ACE_INT32 handle_close (ACE_HANDLE = ACE_INVALID_HANDLE, ACE_Reactor_Mask = 0) override;
+        ACE_HANDLE get_handle() const override;
+    private:
+        ACE_SOCK_Stream m_stream;
+        ACE_INET_Addr m_listen;
+        ACE_SOCK_Acceptor m_server;
+        std::shared_ptr<DatastoreConnectionHandler> m_dsConn;
+        std::shared_ptr<ConsoleConnectionHandler> m_consoleConn;
+
+};
+
+#endif
+
+enum service : std::uint32_t {
+    // DS Client Unix
+    SERVICE_DS_UNIX = 1,
+    // DS TCP Client
+    SERVICE_DS_TCP = 2,
+    //Shell listener on TCP
+    SERVICE_SHELL_TCP = 3,
+    SERVICE_WEB = 4
+};
+
+class CommonHandler {
+    public:
+
+        struct emp_t {
+            emp_t() : m_type(0), m_command(0), m_message_id(0), m_response("") {}
+            ~emp_t() {}
+            std::uint16_t m_type;
+            std::uint16_t m_command;
+            std::uint16_t m_message_id;
+            std::string m_response;
+        };
+
+        ~CommonHandler() {}
+
+        static std::shared_ptr<CommonHandler> instance() {
+            if(nullptr == m_instance) {
+                m_instance = std::make_shared<CommonHandler>();
+            }
+            return(m_instance);
+        }
+
+        ACE_INT32 web_rx(ACE_HANDLE fd, std::string& data);
+        ACE_INT32 tcp_rx(ACE_HANDLE fd, std::string& data);
+        ACE_INT32 unix_rx(ACE_HANDLE fd, std::string& data);
+        ACE_INT32 shell_rx(ACE_HANDLE fd, std::string& data);
+
+    private:
+        CommonHandler() : m_instance(nullptr) {}
+        
+        static std:shared_ptr<CommonHandler> m_instance;
+};
+
+class ConnectedServices : public ACE_Event_Handler {
+    public:
+
+        ConnectedServices(ACE_HANDLE handle, ACE_INET_Addr peerAddr, service svcType):
+                           m_address(peerAddr),
+                           m_svcType(svcType),
+                           m_ip(),
+                           m_handle(handle) {}
+
+        virtual ~ConnectedServices();
+        ACE_INT32 handle_input(ACE_HANDLE handle) override;
+
+    private:
+        ACE_INET_Addr m_address;
+        service m_svcType;
+        std::string m_ip;
+        ACE_HANDLE m_handle;
+};
+
+class ServiceHandler : public ACE_Event_Handler {
+    public:
+
+        ACE_INT32 complete(ACE_SOCK_Stream &new_stream, ACE_Addr *remote_sap=0, const ACE_Time_Value *timeout=0) override;
+        ACE_INT32 handle_timeout(const ACE_Time_Value &tv, const void *act=0) override;
+        ACE_INT32 handle_input(ACE_HANDLE handle) override;
+        ACE_INT32 handle_signal(int signum, siginfo_t *s = 0, ucontext_t *u = 0) override;
+        ACE_INT32 handle_close (ACE_HANDLE = ACE_INVALID_HANDLE, ACE_Reactor_Mask = 0) override;
+ 
+
+        ServiceHandler() : m_acceptors(), m_connectors(), m_config(), m_connectedServices() {}
+        virtual ~ServiceHandler() = default;
+
+        void createConnectorServices(const std::vector<std::tuple<std::string, std::uint16_t, service>>& services) {
+
+            for(const auto& [IP, PORT, serviceType]: services) {
+
+                std::string addr;
+                addr.clear();
+                if(serviceType == SERVICE_DS_UNIX) {
+                    ACE_UNIX_Addr connector;
+                    connector.set("/var/run/treemgr/treemgr.sock")
+                    m_connectors.emplace_back(std::tuple(ACE_SOCK_Stream(), connector, ACE_SOCK_Connector(), serviceType));
+                } else {
+
+                    ACE_INET_Addr connector;
+                
+                    if(IP.length()) {
+                        addr = IP;
+                        addr += ":";
+                        addr += std::to_string(PORT);
+                        connector.set_address(addr.c_str(), addr.length());
+                    } else {
+                        addr = std::to_string(PORT);
+                        connector.set_port_number(PORT);
+                    }
+
+                    m_connectors.emplace_back(std::tuple(ACE_SOCK_Stream(), connector, ACE_SOCK_Connector(), serviceType));
+                }
+            }
+        }
+
+        void createAcceptorServices(const std::vector<std::tuple<std::string, std::uint16_t, service>>& services) {
+
+            for(const auto& [IP, PORT, serviceType]: services) {
+
+                std::string addr;
+                addr.clear();
+                ACE_INET_Addr listen;
+                if(IP.length()) {
+                    addr = IP;
+                    addr += ":";
+                    addr += std::to_string(PORT);
+                    listen.set_address(addr.c_str(), addr.length());
+                } else {
+                    addr = std::to_string(PORT);
+                    listen.set_port_number(PORT);
+                }
+
+                m_acceptors.emplace_back(std::tuple(ACE_SOCK_Stream(), listen, ACE_SOCK_Acceptor(), serviceType));
+            }
+        }
+
+        std::int32_t startAcceptorServices() {
+            std::int32_t reuse_addr = 1;
+            for(auto& [stream, listen, acceptor, serviceType] : m_acceptors) {
+
+                if(acceptor.open(listen, reuse_addr) < 0 ) {
+                    ACE_DEBUG((LM_DEBUG, ACE_TEXT("%D [Acceptor:%t] %M %N:%l failed: opening of port %d hostname %s\n"), 
+                               listen.get_port_number(), listen.get_host_name()));
+                } else {
+                    //start listening for new connection.
+                    ACE_Reactor::instance()->register_handler(acceptor.get_handle(), this, 
+                                                    ACE_Event_Handler::ACCEPT_MASK | 
+                                                    ACE_Event_Handler::TIMER_MASK |
+                                                    ACE_Event_Handler::SIGNAL_MASK);
+                }
+
+            }
+        }
+
+        std::int32_t startConnectorServices() {
+            std::int32_t reuse_addr = 1;
+            ACE_Time_Value to = {0,0};
+            for(auto& [stream, address, connector, serviceType] : m_connectors) {
+
+                if(connector.connect(stream, address, &to) < 0) {
+                    if(EWOULDBLOCK == errno) {
+                        //For non-blocking socket
+                    }
+                    ACE_DEBUG((LM_DEBUG, ACE_TEXT("%D [Connector:%t] %M %N:%l failed: opening of port %d hostname %s\n"), 
+                               listen.get_port_number(), listen.get_host_name()));
+                } else {
+                    ACE_Reactor::instance()->register_handler(stream.get_handle(), this, 
+                                                    ACE_Event_Handler::CONNECT_MASK | 
+                                                    ACE_Event_Handler::TIMER_MASK |
+                                                    ACE_Event_Handler::SIGNAL_MASK);
+                }
+
+            }
+        }
+
+    private:
+        std::vector<std::tuple<ACE_SOCK_Stream, ACE_Addr, ACE_SOCK_Acceptor, service>> m_acceptors;
+        std::vector<std::tuple<ACE_SOCK_Stream, ACE_Addr, ACE_SOCK_Connector, service>> m_connectors;
+        std::unordered_map<std::string, std::string> m_config;
+        std::unordered_map<std::int32_t, ConnectedServices> m_connectedServices;
+
+};
+
 
 #endif /* __uniimage__hpp__ */
