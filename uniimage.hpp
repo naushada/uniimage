@@ -804,7 +804,7 @@ class CommonHandler {
 
         ACE_INT32 web_rx(ACE_HANDLE fd, std::string& data);
         ACE_INT32 tcp_rx(ACE_HANDLE fd, std::string& data);
-        ACE_INT32 unix_rx(ACE_HANDLE fd, std::string& data);
+        emp_t unix_rx(ACE_HANDLE fd, std::string& data);
         ACE_INT32 shell_rx(ACE_HANDLE fd, std::string& data);
 
     private:
@@ -821,7 +821,7 @@ class ConnectedServices : public ACE_Event_Handler {
                            m_ip(),
                            m_handle(handle) {}
 
-        virtual ~ConnectedServices();
+        virtual ~ConnectedServices() = default;
         ACE_INT32 handle_input(ACE_HANDLE handle) override;
 
     private:
@@ -851,24 +851,24 @@ class ServiceHandler : public ACE_Event_Handler {
                 std::string addr;
                 addr.clear();
                 if(serviceType == SERVICE_DS_UNIX) {
-                    ACE_UNIX_Addr connector;
-                    connector.set("/var/run/treemgr/treemgr.sock")
-                    m_connectors.emplace_back(std::tuple(ACE_SOCK_Stream(), connector, ACE_SOCK_Connector(), serviceType));
+                    ACE_UNIX_Addr address;
+                    address.set("/var/run/treemgr/treemgr.sock")
+                    m_connectors.emplace_back(std::tuple(ACE_SOCK_Stream(), address, ACE_SOCK_Connector(), serviceType));
                 } else {
 
-                    ACE_INET_Addr connector;
+                    ACE_INET_Addr address;
                 
                     if(IP.length()) {
                         addr = IP;
                         addr += ":";
                         addr += std::to_string(PORT);
-                        connector.set_address(addr.c_str(), addr.length());
+                        address.set_address(addr.c_str(), addr.length());
                     } else {
                         addr = std::to_string(PORT);
-                        connector.set_port_number(PORT);
+                        address.set_port_number(PORT);
                     }
 
-                    m_connectors.emplace_back(std::tuple(ACE_SOCK_Stream(), connector, ACE_SOCK_Connector(), serviceType));
+                    m_connectors.emplace_back(std::tuple(ACE_SOCK_Stream(), address, ACE_SOCK_Connector(), serviceType));
                 }
             }
         }
@@ -913,24 +913,39 @@ class ServiceHandler : public ACE_Event_Handler {
         }
 
         std::int32_t startConnectorServices() {
+
             std::int32_t reuse_addr = 1;
+            //This will make client to make async connection attempt and once connection is established then it will invoke complete.
             ACE_Time_Value to = {0,0};
             for(auto& [stream, address, connector, serviceType] : m_connectors) {
 
                 if(connector.connect(stream, address, &to) < 0) {
                     if(EWOULDBLOCK == errno) {
                         //For non-blocking socket
+                        ACE_DEBUG((LM_DEBUG, ACE_TEXT("%D [Connector:%t] %M %N:%l async connection completion will be invoked\n")));
+                    } else {
+                        ACE_DEBUG((LM_DEBUG, ACE_TEXT("%D [Connector:%t] %M %N:%l async connection failed port: %d hostname: %s\n"), 
+                               address.get_port_number(), address.get_host_name()));
+                        
                     }
-                    ACE_DEBUG((LM_DEBUG, ACE_TEXT("%D [Connector:%t] %M %N:%l failed: opening of port %d hostname %s\n"), 
-                               listen.get_port_number(), listen.get_host_name()));
                 } else {
-                    ACE_Reactor::instance()->register_handler(stream.get_handle(), this, 
-                                                    ACE_Event_Handler::CONNECT_MASK | 
-                                                    ACE_Event_Handler::TIMER_MASK |
-                                                    ACE_Event_Handler::SIGNAL_MASK);
-                }
 
+                    //client is connected successfully
+                    auto ret = m_connectedServices.insert(std::make_pair(stream.get_handle(), ConnectedServices(stream.get_handle(), address, connector, serviceType))).second;
+                    if(!ret) {
+                        //Insertion Failed
+                        ACE_ERROR((LM_ERROR, ACE_TEXT("%D [Connector:%t] %M %N:%l insertion to m_connectedServices failed channel: %d\n"), stream.get_handle()));
+                        return(-1);
+                    }
+
+                    ACE_Reactor::instance()->register_handler(stream.get_handle(), 
+                                                              m_connectedServices[stream.get_handle()], 
+                                                              ACE_Event_Handler::READ_MASK | 
+                                                              ACE_Event_Handler::TIMER_MASK |
+                                                              ACE_Event_Handler::SIGNAL_MASK);
+                }
             }
+            return(0);
         }
 
     private:

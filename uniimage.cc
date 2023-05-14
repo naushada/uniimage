@@ -2947,11 +2947,34 @@ std::uint32_t from_json_array_to_map(const std::string json_obj, std::unordered_
 */
 
 ACE_INT32 ServiceHandler::complete(ACE_SOCK_Stream &new_stream, ACE_Addr *remote_sap, const ACE_Time_Value *timeout) {
+    //Asynchronous connection is established
+    auto it = std::find_if(m_connectors.begin(), m_connectors.end(), [&](auto& ent) -> bool {
+        if(*remote_sap == std::get<1>(ent)) {
+            std::get<0>(ent) = new_stream;
+            return(true);
+        }
+        return(false);
+    });
 
+    if(it != m_connectors.end()) {
+        auto ret = m_connectedServices.emplace(std::make_pair(new_stream.get_handle(), ConnectedServices(new_stream.get_handle(), std::get<1>(*it), std::get<2>(*it)))).second;
+        if(!ret) {
+            //Insertion Failed
+            return(-1);
+        }
+
+        ACE_Reactor::instance()->register_handler(new_stream.get_handle(), 
+                                                  &m_connectedServices[new_stream.get_handle()], 
+                                                  ACE_Event_Handler::READ_MASK | 
+                                                  ACE_Event_Handler::TIMER_MASK |
+                                                  ACE_Event_Handler::SIGNAL_MASK);
+    }
+
+    return(0);
 }
 
 ACE_INT32 ServiceHandler::handle_timeout(const ACE_Time_Value &tv, const void *act) {
-
+    return(0);
 }
 
 /**
@@ -2989,14 +3012,14 @@ ACE_INT32 ServiceHandler::handle_input(ACE_HANDLE handle) {
         //create connected client list.
         auto channel = (std::get<0>(*it)).get_handle();
         auto svcType = std::get<3>(*it);
-        auto result = m_connectedServices.insert(std::make_pair(channel, ConnectedServices(channel, peerAddr, svcType)));
+        auto result = m_connectedServices.emplace(std::make_pair(channel, ConnectedServices(channel, peerAddr, svcType)));
         if(!result.second) {
             //
             ACE_DEBUG((LM_DEBUG, ACE_TEXT("%D [Acceptor:%t] %M %N:%l insersion to m_connectedServices failed for channel: %d from port: %d from Host: %s\n"), 
                                channel, peerAddr.get_port_number(), peerAddr.get_host_name()));
         } else {
             //Register seperate connection handler 
-            ACE_Reactor::instance()->register_handler(channel, m_connectedServices[channel], 
+            ACE_Reactor::instance()->register_handler(channel, &m_connectedServices[channel], 
                                                     ACE_Event_Handler::READ_MASK | 
                                                     ACE_Event_Handler::TIMER_MASK |
                                                     ACE_Event_Handler::SIGNAL_MASK);
@@ -3012,14 +3035,14 @@ ACE_INT32 ServiceHandler::handle_input(ACE_HANDLE handle) {
      \____|_|_|\___|_| |_|\__|
     */
 
-   it = std::find_if(m_connectors.begin(), m_connectors.end(), [&](const auto& ent) -> bool {
-    return(handle == (std::get<0>(ent)).get_handle());
+   auto iter = std::find_if(m_connectors.begin(), m_connectors.end(), [&](const auto& ent) -> bool {
+       return(handle == (std::get<0>(ent)).get_handle());
    });
 
-   if(it != m_connectors.end()) {
+   if(iter != m_connectors.end()) {
        std::string data("");
        // 
-       switch(std::get<3>(*it)) {
+       switch(std::get<3>(*iter)) {
            case SERVICE_DS_UNIX:
            {
                //Follow EMP Protocol While receiving.
@@ -3055,14 +3078,14 @@ ACE_INT32 ServiceHandler::handle_input(ACE_HANDLE handle) {
 }
 
 ACE_INT32 ServiceHandler::handle_signal(int signum, siginfo_t *s, ucontext_t *u) {
-
+    return(0);
 }
 
 ACE_INT32 ServiceHandler::handle_close (ACE_HANDLE handle, ACE_Reactor_Mask mask) {
-
+    return(0);
 }
 
-ACE_INT32 CommonHandler::web_rx(ACE_HANDLE fd, std::string& data) {
+ACE_INT32 CommonHandler::web_rx(ACE_HANDLE channel, std::string& data) {
     std::cout << "line: " << __LINE__ << " " << __PRETTY_FUNCTION__ << " handle:" << channel <<std::endl;
     std::array<char, 2048> arr;
     arr.fill(0);
@@ -3075,7 +3098,7 @@ ACE_INT32 CommonHandler::web_rx(ACE_HANDLE fd, std::string& data) {
     } else if(len > 0) {
         std::string ss(arr.data(), len);
         std::cout << "HTTP:" << std::endl << ss << std::endl;
-        Http http(ss);
+        noor::Http http(ss);
         std::cout << "line: " << __LINE__ << " URI: "   << http.uri()    << std::endl;
         std::cout << "line: " << __LINE__ << " Header " << http.header() << std::endl;
         std::cout << "line: " << __LINE__ << " Body "   << http.body()   << std::endl;
@@ -3125,7 +3148,7 @@ ACE_INT32 CommonHandler::web_rx(ACE_HANDLE fd, std::string& data) {
     return(0);
 }
 
-ACE_INT32 CommonHandler::tcp_rx(ACE_HANDLE channeel, std::string& data) {
+ACE_INT32 CommonHandler::tcp_rx(ACE_HANDLE channel, std::string& data) {
     std::array<char, 8> arr;
     arr.fill(0);
     std::int32_t len = -1;
@@ -3169,7 +3192,7 @@ ACE_INT32 CommonHandler::tcp_rx(ACE_HANDLE channeel, std::string& data) {
     return(0);
 }
 
-emp_t CommonHandler::unix_rx(ACE_HANDLE channel, std::string& data) {
+CommonHandler::emp_t CommonHandler::unix_rx(ACE_HANDLE channel, std::string& data) {
     std::uint16_t command;
     std::uint16_t message_id;
     std::uint32_t payload_size;
@@ -3210,7 +3233,7 @@ emp_t CommonHandler::unix_rx(ACE_HANDLE channel, std::string& data) {
         if(offset == payload_size) {
             std::string ss((char *)payload.get(), payload_size);
             std::cout << "Payload: " << ss << std::endl;
-            emp_t res;
+            CommonHandler::emp_t res;
             res.m_type = type;
             res.m_command = command;
             res.m_message_id = message_id;
@@ -3222,7 +3245,7 @@ emp_t CommonHandler::unix_rx(ACE_HANDLE channel, std::string& data) {
     return(emp_t {});
 }
 
-ACE_INT32 CommonHandler::shell_rx(ACE_HANDLE fd, std::string& data {
+ACE_INT32 CommonHandler::shell_rx(ACE_HANDLE fd, std::string& data) {
 
 }
 
@@ -3233,47 +3256,39 @@ ACE_INT32 CommonHandler::shell_rx(ACE_HANDLE fd, std::string& data {
  * @return ACE_INT32 
  */
 ACE_INT32 ConnectedServices::handle_input(ACE_HANDLE handle) {
-
-   it = std::find_if(m_connectedServices.begin(), m_connectedServices.end(), [&](const auto& ent) -> bool {
-    return(handle == ent.first);
-   });
-
-   if(it != m_connectedServices.end()) {
-       std::string data("");
-       // 
-       switch(std::get<3>(*it)) {
-           case SERVICE_DS_UNIX:
+    std::string data("");
+    switch(m_svcType) {
+        case SERVICE_DS_UNIX:
            {
                //Follow EMP Protocol While receiving.
                auto ret = CommonHandler::instance().unix_rx(handle, data);
            }
            break;
 
-           case SERVICE_DS_TCP:
+        case SERVICE_DS_TCP:
            {
                auto ret = CommonHandler::instance().tcp_rx(handle, data);
            }
            break;
 
-           case SERVICE_SHELL_TCP:
+        case SERVICE_SHELL_TCP:
            {
                auto ret = CommonHandler::instance().shell_rx(handle, data);
            }
            break;
 
-           case SERVICE_WEB:
+        case SERVICE_WEB:
            {
                //Follow HTTP Protocol While Receiving
                auto ret = CommonHandler::instance().web_rx(handle, data);
            }
            break;
 
-           default:
+        default:
            {
 
            }
-       }
-   }
+    }
 }
 
 #endif /* __uniimage__cc__ */
