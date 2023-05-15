@@ -1038,16 +1038,17 @@ int main(std::int32_t argc, char *argv[]) {
 
     if(!config["role"].compare("client")) {
 
+        ent.push_back({std::make_unique<UnixClient>(), noor::NetInterface::service_type::UNIX});
+
         if(!config["protocol"].compare("tcp")) {
             ent.push_back({std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC});
             ent.push_back({std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC});
         }
-        ent.push_back({std::make_unique<UnixClient>(), noor::NetInterface::service_type::UNIX});
 
         std::get<0>(ent.at(0))->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
         std::get<0>(ent.at(0))->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
         std::get<0>(ent.at(0))->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
-        std::cout << "line: " << __LINE__ << " TCP_ASYNC: " << std::get<0>(ent.at(0))->handle() << " : " <<std::get<0>(ent.at(0))->connected_client(std::get<0>(ent.at(0))->handle())<< std::endl;
+        //std::cout << "line: " << __LINE__ << " TCP_ASYNC: " << std::get<0>(ent.at(0))->handle() << " : " <<std::get<0>(ent.at(0))->connected_client(std::get<0>(ent.at(0))->handle())<< std::endl;
 
         auto timeout = 100;
         if(config["time-out"].length()) {
