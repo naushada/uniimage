@@ -2337,7 +2337,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                             inst->connected_client(noor::NetInterface::client_connection::Connected);
                             FD_CLR(channel, &fdWrite);
                             FD_ZERO(&fdWrite);
-                            std::cout << "line: " << __LINE__ << " Connected to server handle: " << inst->handle() << std::endl;
+                            std::cout << "line: " << __LINE__ << " async data store Connected to server handle: " << inst->handle() << std::endl;
 
                             auto it = std::find_if(services.begin(), services.end(), [&](const auto& ent) {
                                 return(noor::NetInterface::service_type::UNIX == std::get<1>(ent));
@@ -2399,8 +2399,38 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                             inst->connected_client(noor::NetInterface::client_connection::Connected);
                             FD_CLR(channel, &fdWrite);
                             FD_ZERO(&fdWrite);
-                            std::cout << "line: " << __LINE__ << " Connected to server handle: " << inst->handle() << std::endl;
+                            std::cout << "line: " << __LINE__ << " Device Console App Connected to server handle: " << inst->handle() << std::endl;
                             // create command processing process using fork.
+                            std::int32_t rdFd[2];
+                            std::int32_t wrFd[2];
+                            pipe(rdFd);
+                            pipe(wrFd);
+                            
+                            auto pid = fork();
+                            if(!pid) {
+                                //child process
+                                //::close(rdFd[1]);
+                                //::close(wrFd[0]);
+                                //exit hte child process now
+                                exit(0);
+                            } else if(pid > 0) {
+                                //parent process
+                                ::close(rdFd[0]);
+                                ::close(wrFd[1]);
+                                ::dup2(fileno(stdout), rdFd[1]);
+                                ::dup2(fileno(stdin), wrFd[0]);
+
+                                //block the parent process now.
+                                ::execlp("/bin/sh", "/bin/sh", (char *)0);
+                            } else {
+                                //error
+                            }
+
+                            ::close(rdFd[1]);
+                            ::close(wrFd[0]);
+                            // use rdFd[0] -- read/recv from parent process
+                            // use wrFd[1] -- write/send toparentprocess
+                            dup2(channel, rdFd[0]);
                         }
                     }
                 }
