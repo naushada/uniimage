@@ -2252,7 +2252,11 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
     int conns  = -1;
     fd_set fdList;
     fd_set fdWrite;
-    
+
+    // These are pipe FD
+    std::int32_t rdFd[2] = {-1, -1};
+    std::int32_t wrFd[2] = {-1, -1};
+
     while (1) {
 
         struct timeval to;
@@ -2289,9 +2293,35 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
             }
         }
 
+        //This is used to pass shell command to child process.
+        if(rdFd[0] > 0) {
+            FD_SET(rdFd[0], &fdList);
+        }
+
         conns = ::select(FD_SETSIZE, (fd_set *)&fdList, (fd_set *)&fdWrite, (fd_set *)NULL, (struct timeval *)&to);
         
         if(conns > 0) {
+
+            if(FD_ISSET(rdFd[0], &fdList)) {
+                //Shell command response has come pass on to web for display.
+                auto it = std::find_if(services.begin(), services.end(),[&](const auto& ent) -> bool {
+                    auto &[inst, type] = ent;
+                    return(type == noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC);
+                });
+
+                if(it != services.end()) {
+                    auto &inst = std::get<0>(*it);
+                    auto channel = inst->handle();
+                    std::string rsp("");
+                    std::int32_t len = -1;
+                    len = recv(rdFd[0], rsp.data(), 2048, 0);
+                    if(len > 0) {
+                        rsp.resize(len);
+                        auto ret = tcp_tx(channel, rsp);
+                        std::cout << "line: " << __LINE__ << " Shell command response length: " << ret << " rsp: " << rsp << std::endl;
+                    }
+                }
+            }
 
             for(auto& [inst, type]: services) {
                 auto channel = inst->handle();
@@ -2374,6 +2404,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                     } else {
                         //Got from TCP server 
                         std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req << " command: " << request << std::endl;
+                        
                     }
                 }
 
@@ -2401,24 +2432,23 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                             FD_ZERO(&fdWrite);
                             std::cout << "line: " << __LINE__ << " Device Console App Connected to server handle: " << inst->handle() << std::endl;
                             // create command processing process using fork.
-                            std::int32_t rdFd[2];
-                            std::int32_t wrFd[2];
+                            
                             pipe(rdFd);
                             pipe(wrFd);
                             
                             auto pid = fork();
-                            if(!pid) {
-                                //child process
+                            if(pid > 0) {
+                                //Parent process
                                 //::close(rdFd[1]);
                                 //::close(wrFd[0]);
                                 //exit hte child process now
-                                exit(0);
-                            } else if(pid > 0) {
-                                //parent process
+                                
+                            } else if(!pid) {
+                                //Child process
                                 ::close(rdFd[0]);
                                 ::close(wrFd[1]);
-                                ::dup2(fileno(stdout), rdFd[1]);
-                                ::dup2(fileno(stdin), wrFd[0]);
+                                ::dup2(rdFd[1], fileno(stdout));
+                                ::dup2(wrFd[0], fileno(stdin));
 
                                 //block the parent process now.
                                 ::execlp("/bin/sh", "/bin/sh", (char *)0);
@@ -2428,9 +2458,9 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
 
                             ::close(rdFd[1]);
                             ::close(wrFd[0]);
-                            // use rdFd[0] -- read/recv from parent process
-                            // use wrFd[1] -- write/send toparentprocess
-                            dup2(channel, rdFd[0]);
+                            // use rdFd[0] -- read/recv from Child process
+                            // use wrFd[1] -- write/send to Child process
+                            //dup2(rdFd[0], channel);
                         }
                     }
                 }
@@ -2446,6 +2476,10 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                     } else {
                         //Got from TCP server 
                         std::cout <<"line: " << __LINE__ << " Received from TCP server for shell command length: " << req << std::endl;
+                        if(wrFd[1] > 0) {
+                            auto len = send(wrFd[1], request.data(), req, 0);
+                            std::cout <<"line: " << __LINE__ << " sent to Shell Process length: " << len << " command: " << request << std::endl;
+                        }
                     }
                 }
             }
@@ -2466,6 +2500,8 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
             });
 
             if((it != services.end()) && (std::get<0>(*it)->handle() < 0) && (!std::get<0>(*it)->get_config().at("protocol").compare("tcp"))) {
+                memset(rdFd, -1, 2 * sizeof(rdFd));
+                memset(wrFd, -1, 2 * sizeof(wrFd));
                 std::get<0>(*it)->tcp_client_async(std::get<0>(*it)->get_config().at("server-ip"), 65344);
             }
 
