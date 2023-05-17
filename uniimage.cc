@@ -2643,6 +2643,8 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                         if(iter != webInst.web_connections().end()) {
                                             std::cout << "line: " << __LINE__ << " sending to web-client" << std::endl;
                                             //send to web-client
+                                            auto rlen = web_tx(iter->first, request);
+                                            std::cout << "line: " << __LINE__ << " rlen: " << rlen << std::endl;
                                         }
                                     }
                                 }
