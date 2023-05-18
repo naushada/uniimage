@@ -2302,7 +2302,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
         
         if(conns > 0) {
 
-            if(FD_ISSET(rdFd[0], &fdList)) {
+            if(rdFd[0] > 0 && FD_ISSET(rdFd[0], &fdList)) {
                 //Shell command response has come pass on to web for display.
                 auto it = std::find_if(services.begin(), services.end(),[&](const auto& ent) -> bool {
                     auto &[inst, type] = ent;
@@ -2501,8 +2501,8 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
             });
 
             if((it != services.end()) && (std::get<0>(*it)->handle() < 0) && (!std::get<0>(*it)->get_config().at("protocol").compare("tcp"))) {
-                memset(rdFd, -1, 2 * sizeof(rdFd));
-                memset(wrFd, -1, 2 * sizeof(wrFd));
+                memset(rdFd, -1, sizeof(rdFd));
+                memset(wrFd, -1, sizeof(wrFd));
                 std::get<0>(*it)->tcp_client_async(std::get<0>(*it)->get_config().at("server-ip"), 65344);
             }
 
@@ -2695,6 +2695,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                                     // learn the IP of web-client
                                                     std::get<4>(elm.second) = std::get<1>(value);
                                                     tcp_channel = std::get<0>(elm.second);
+                                                    std::cout << "line: " << __LINE__ << " tcp_channel: " << tcp_channel << " IP: " << IP << " std::get<1>(value) " << std::get<1>(value) << std::endl;
                                                     return(true);
                                                 }
                                                 return(false);
@@ -2702,7 +2703,8 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
 
                                              if(it != tcpInst.tcp_connections().end()) {
                                                  std::string command = http.value("command");
-                                                 std::int32_t ret = tcp_tx(tcp_channel, command);    
+                                                 std::int32_t ret = tcp_tx(tcp_channel, command);
+                                                 std::cout << "line: " << __LINE__ << " the command: " << command << " sent to shell handler " << std::endl;
                                              }
                                             
                                         }
