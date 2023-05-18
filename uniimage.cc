@@ -2451,7 +2451,8 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                                 ::dup2(wrFd[0], fileno(stdin));
 
                                 //block the parent process now.
-                                ::execlp("/bin/sh", "/bin/sh", (char *)0);
+                                char* args[] = {"/bin/sh", NULL};
+                                ::execlp(args[0], args[0], args[1]);
                             } else {
                                 //error
                             }
