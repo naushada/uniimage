@@ -923,7 +923,8 @@ std::vector<struct option> options = {
     {"protocol",                  required_argument, 0, 't'},
     {"self-ip",                   required_argument, 0, 's'},
     {"self-port",                 required_argument, 0, 'e'},
-    {"time-out",                  required_argument, 0, 'o'}
+    {"time-out",                  required_argument, 0, 'o'},
+    {"machine",                   optional_argument, 0, 'm'},
 };
 
 /*
@@ -944,7 +945,7 @@ int main(std::int32_t argc, char *argv[]) {
     std::int32_t option_index = 0;
     std::unordered_map<std::string, std::string> config;
     
-    while ((c = getopt_long(argc, argv, "r:i:p:w:t:a:s:e:o:", options.data(), &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "r:i:p:w:t:a:s:e:o:m:", options.data(), &option_index)) != -1) {
         switch(c) {
             case 'r':
             {
@@ -997,6 +998,11 @@ int main(std::int32_t argc, char *argv[]) {
                 config.emplace(std::make_pair("time-out", optarg));
             }
             break;
+            case 'm':
+            {
+                config.emplace(std::make_pair("machine", optarg));
+            }
+            break;
 
             default:
             {
@@ -1008,7 +1014,8 @@ int main(std::int32_t argc, char *argv[]) {
                           << "--self-port <self port for bind to receive request> " << std::endl
                           << "--protocol  <tcp|udp|unix> " << std::endl
                           << "--wan-interface-instance <c1|c3|c4|c5|w1|w2|e1|e2|e3> " << std::endl
-                          << "--time-out <value in ms> " << std::endl;
+                          << "--time-out <value in ms> " << std::endl
+                          << "--machine <host|> " << std::endl;
                           return(-1);
             }
         }
@@ -1038,17 +1045,25 @@ int main(std::int32_t argc, char *argv[]) {
 
     if(!config["role"].compare("client")) {
 
-        ent.push_back({std::make_unique<UnixClient>(), noor::NetInterface::service_type::UNIX});
-
-        if(!config["protocol"].compare("tcp")) {
-            ent.push_back({std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC});
-            ent.push_back({std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC});
+        /**
+         * @brief machine command line argument is required to do unit testing of client on x86 machine.
+         *        if machine = host meaning this is running on x86 machine or any value for aarm64 machine.
+         * 
+         */
+        if(!config["machine"].length()) {
+            ent.at(0) = {std::make_unique<UnixClient>(), noor::NetInterface::service_type::UNIX};
+            std::get<0>(ent.at(0))->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
+            std::get<0>(ent.at(0))->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
+            std::get<0>(ent.at(0))->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
+            //std::cout << "line: " << __LINE__ << " TCP_ASYNC: " << std::get<0>(ent.at(0))->handle() << " : " <<std::get<0>(ent.at(0))->connected_client(std::get<0>(ent.at(0))->handle())<< std::endl;
         }
 
-        std::get<0>(ent.at(0))->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
-        std::get<0>(ent.at(0))->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
-        std::get<0>(ent.at(0))->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
-        //std::cout << "line: " << __LINE__ << " TCP_ASYNC: " << std::get<0>(ent.at(0))->handle() << " : " <<std::get<0>(ent.at(0))->connected_client(std::get<0>(ent.at(0))->handle())<< std::endl;
+        if(!config["protocol"].compare("tcp")) {
+            ent.at(1) = {std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC};
+            ent.at(2) = {std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC};
+        }
+
+        
 
         auto timeout = 100;
         if(config["time-out"].length()) {
