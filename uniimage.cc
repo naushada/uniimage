@@ -1055,12 +1055,14 @@ int main(std::int32_t argc, char *argv[]) {
             std::get<0>(ent.at(0))->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
             std::get<0>(ent.at(0))->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
             std::get<0>(ent.at(0))->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
+            std::get<0>(ent.at(0))->getVariable("system.os", {{"version"}, {"buildnumber"}, {"name"}});
             //std::cout << "line: " << __LINE__ << " TCP_ASYNC: " << std::get<0>(ent.at(0))->handle() << " : " <<std::get<0>(ent.at(0))->connected_client(std::get<0>(ent.at(0))->handle())<< std::endl;
         }
 
         if(!config["protocol"].compare("tcp")) {
             ent.at(1) = {std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC};
             ent.at(2) = {std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC};
+            ent.at(2) = {std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_WEB_PROXY_SVC), noor::NetInterface::service_type::TCP_WEB_PROXY_SVC};
         }
 
         
@@ -2287,6 +2289,9 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
             if(channel > 0 && noor::NetInterface::service_type::UNIX == type) {
                 FD_SET(channel, &fdList);
 
+            } else if(channel > 0 && noor::NetInterface::service_type::TCP_WEB_PROXY_SVC == type) {
+                FD_SET(channel, &fdList);
+
             } else if(channel > 0 && noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC == type) {
                 if(inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
                     //std::cout << "line: " << __LINE__ << " function: " << __FUNCTION__ << " handle: " << channel << "connected " << std::endl;
@@ -2360,6 +2365,18 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                     }
                 }
 
+                if(channel > 0 && type == noor::NetInterface::service_type::TCP_WEB_PROXY_SVC && FD_ISSET(channel, &fdList)) {
+                    // send to tcp server (tcp_tx)
+                    //send to DS APP Consumer 
+                    std::string rsp("");
+                    auto ret = recv(channel, rsp.data(), 2048, 0);
+                    if(ret > 0) {
+                        rsp.resize(ret);
+                        std::cout << "line: " << __LINE__ << " rsp: " << rsp << std::endl; 
+                        
+                    }
+                }
+
                 //The TCP client might be connected
                 if(channel > 0 && type == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdWrite)) {
                     //TCP connection established successfully.
@@ -2419,7 +2436,21 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                     } else {
                         //Got from TCP server 
                         std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req << " command: " << request << std::endl;
-                        
+                        //send to http server on device 
+                        auto it = std::find_if(services.begin(), services.end(), [&](const auto &ent) {
+                            return(noor::NetInterface::service_type::TCP_WEB_PROXY_SVC == std::get<1>(ent));
+                        });
+
+                        if(it != services.end()) {
+                            auto &inst = std::get<0>(*it);
+                            auto channel = inst->handle();
+                            std::cout << "line: " << __LINE__ << " received fro web-proxy " << request << std::endl;
+                            std::int32_t offset = 0;
+                            do {
+                            auto ret = send(channel, request.data() + offset , request.length() - offset, 0);
+                            offset += ret;
+                            } while(offset != request.length());
+                        }
                     }
                 }
 
