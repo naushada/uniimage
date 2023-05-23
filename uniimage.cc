@@ -2478,7 +2478,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                             FD_ZERO(&fdWrite);
                             std::cout << "line: " << __LINE__ << " Device Console App Connected to server handle: " << inst->handle() << std::endl;
                             // create command processing process using fork.
-                            
+                            #if 0
                             pipe(rdFd);
                             pipe(wrFd);
                             
@@ -2508,6 +2508,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                             // use rdFd[0] -- read/recv from Child process
                             // use wrFd[1] -- write/send to Child process
                             //dup2(rdFd[0], channel);
+                            #endif
                         }
                     }
                 }
