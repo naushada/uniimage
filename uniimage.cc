@@ -1050,19 +1050,19 @@ int main(std::int32_t argc, char *argv[]) {
          *        if machine = host meaning this is running on x86 machine or any value for aarm64 machine.
          * 
          */
-        if(!config["machine"].length()) {
-            ent.at(0) = {std::make_unique<UnixClient>(), noor::NetInterface::service_type::UNIX};
+        //if(!config["machine"].length()) {
+            ent.push_back({std::make_unique<UnixClient>(), noor::NetInterface::service_type::UNIX});
             std::get<0>(ent.at(0))->getVariable("net.interface.wifi[]", {{"radio.mode"}, {"mac"},{"ap.ssid"}}, {{"radio.mode__eq\": \"sta"}});
             std::get<0>(ent.at(0))->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
             std::get<0>(ent.at(0))->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
             std::get<0>(ent.at(0))->getVariable("system.os", {{"version"}, {"buildnumber"}, {"name"}});
             //std::cout << "line: " << __LINE__ << " TCP_ASYNC: " << std::get<0>(ent.at(0))->handle() << " : " <<std::get<0>(ent.at(0))->connected_client(std::get<0>(ent.at(0))->handle())<< std::endl;
-        }
+        //}
 
         if(!config["protocol"].compare("tcp")) {
-            ent.at(1) = {std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC};
-            ent.at(2) = {std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC};
-            ent.at(3) = {std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_WEB_PROXY_SVC), noor::NetInterface::service_type::TCP_WEB_PROXY_SVC};
+            ent.push_back({std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC});
+            ent.push_back({std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC});
+            ent.push_back({std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_WEB_PROXY_SVC), noor::NetInterface::service_type::TCP_WEB_PROXY_SVC});
         }
 
         
@@ -1617,7 +1617,16 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
     } else if(!http.uri().compare(0, 17, "/api/v1/device/ui")) {
         return(buildHttpRedirectResponse(http));
 
-    } else if(!http.uri().compare(0, 21, "/api/v1/shell/command")) {
+    } else if(!http.uri().compare(0, 26, "/api/v1/auth/authorization")) {
+        //Get the device connection based on IP address and serial number
+        auto IP = http.value("ipAddress");
+    } else if(!http.uri().compare(0, 19, "/api/v1/auth/tokens")) {
+        auto IP = http.value("ipAddress");
+    } else if(!http.uri().compare(0, 24, "/api/v1/update/installer")) {
+        auto IP = http.value("ipAddress");
+    } else if(!http.uri().compare(0, 23, "/api/v1/update/manifest")) {
+        auto IP = http.value("ipAddress");
+    } else if(!http.uri().compare(0, 23, "/api/v1/shell/command")) {
         //Sheel command to be executed
         http.dump();
         auto serialNumber = http.value("serialNo");
@@ -2724,9 +2733,26 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                 Http http(request);
                                 //auto rsp = build_web_response(http);
                                 auto rsp = process_web_request(request);
+                                std::int32_t channel = -1;
+                                auto IP = http.value("ipAddress");
                                 if(rsp.length()) {
-
-                                    if(http.value("command").length()) {
+                                    auto it = std::find_if(services.begin(), services.end(), [&](const auto& ent) {
+                                        if(std::get<1>(ent) == noor::NetInterface::service_type::TCP_DS_APP_PROVIDER_SVC) {
+                                            auto iter = std::find_if(std::get<0>(ent)->tcp_connections().begin(), std::get<0>(ent)->tcp_connections().end(), [&](const auto& elm) {
+                                                if(IP == std::get<1>(elm.second)) {
+                                                    channel = std::get<0>(elm);
+                                                    return(true);
+                                                }
+                                                return(false);
+                                            });
+                                        }
+                                        return(false);
+                                    });
+                                    if(channel > 0 ) {
+                                        //send to web-proxy to device.
+                                        auto ret = tcp_tx(channel, request);
+                                    }
+                                    else if(http.value("command").length()) {
                                         // This is the Console command to be Executed pass o this over TCP to Device for a given IP.
                                         std::string IP  = http.value("ipAddress");
                                         std::int32_t tcp_channel = -1;
