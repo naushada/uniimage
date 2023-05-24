@@ -1062,7 +1062,7 @@ int main(std::int32_t argc, char *argv[]) {
         if(!config["protocol"].compare("tcp")) {
             ent.at(1) = {std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC};
             ent.at(2) = {std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC), noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC};
-            ent.at(2) = {std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_WEB_PROXY_SVC), noor::NetInterface::service_type::TCP_WEB_PROXY_SVC};
+            ent.at(3) = {std::make_unique<TcpClient>(config, noor::NetInterface::service_type::TCP_WEB_PROXY_SVC), noor::NetInterface::service_type::TCP_WEB_PROXY_SVC};
         }
 
         
