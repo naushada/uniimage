@@ -2290,7 +2290,9 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 FD_SET(channel, &fdList);
 
             } else if(channel > 0 && noor::NetInterface::service_type::TCP_WEB_PROXY_SVC == type) {
-                FD_SET(channel, &fdList);
+                if(inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
+                    FD_SET(channel, &fdList);
+                }
 
             } else if(channel > 0 && noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC == type) {
                 if(inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
@@ -2364,21 +2366,30 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                         inst->update_response_to_cache(req.m_message_id, req.m_response);
                     }
                 }
-
-                if(channel > 0 && type == noor::NetInterface::service_type::TCP_WEB_PROXY_SVC && FD_ISSET(channel, &fdList)) {
+                else if(channel > 0 && type == noor::NetInterface::service_type::TCP_WEB_PROXY_SVC && FD_ISSET(channel, &fdList)) {
                     // send to tcp server (tcp_tx)
                     //send to DS APP Consumer 
                     std::string rsp("");
                     auto ret = recv(channel, rsp.data(), 2048, 0);
                     if(ret > 0) {
                         rsp.resize(ret);
-                        std::cout << "line: " << __LINE__ << " rsp: " << rsp << std::endl; 
-                        
+                        std::cout << "line: " << __LINE__ << " rsp: " << rsp << std::endl;
+                        auto it = std::find_if(services.begin(), services.end(), [&](const auto& ent){
+                            return(std::get<1>(ent) == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC);
+                        });
+
+                        if(it != services.end()) {
+                            auto channel = std::get<0>(*it)->handle();
+                            if(channel > 0) {
+                                auto len = tcp_tx(channel, rsp);
+                                std::cout <<"line: " << __LINE__ << "Response from webproxy " << rsp << std::endl; 
+                            }
+                        }
                     }
                 }
 
                 //The TCP client might be connected
-                if(channel > 0 && type == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdWrite)) {
+                else if(channel > 0 && type == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdWrite)) {
                     //TCP connection established successfully.
                     //Push changes if any now
                     //When the connection establishment (for non-blocking socket) encounters an error, the descriptor becomes both readable and writable (p. 530 of TCPv2).
@@ -2424,7 +2435,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                         }
                     }
                 }
-                if(channel > 0 && type == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdList)) {
+                else if(channel > 0 && type == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdList)) {
                     //From TCP Server
                     std::string request("");
                     auto req = inst->tcp_rx(request);
@@ -2455,7 +2466,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 }
 
                 //The TCP client might be connected
-                if(channel > 0 && type == noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdWrite)) {
+                else if(channel > 0 && type == noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdWrite)) {
                     //TCP connection established successfully.
                     //Push changes if any now
                     //When the connection establishment (for non-blocking socket) encounters an error, the descriptor becomes both readable and writable (p. 530 of TCPv2).
@@ -2512,7 +2523,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                         }
                     }
                 }
-                if(channel > 0 && type == noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdList)) {
+                else if(channel > 0 && type == noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdList)) {
                     //From TCP Server
                     std::string request("");
                     auto req = inst->tcp_rx(request);
@@ -2583,14 +2594,12 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
             if(noor::NetInterface::service_type::TCP_WEB_APP_PROVIDER_SVC == type && inst->handle() > 0) {
                 FD_SET(inst->handle(), &readFd);
             }
-            
             // For Receiving Data from Data store
-            if(noor::NetInterface::service_type::TCP_DS_APP_PROVIDER_SVC == type && inst->handle() > 0) {
+            else if(noor::NetInterface::service_type::TCP_DS_APP_PROVIDER_SVC == type && inst->handle() > 0) {
                 FD_SET(inst->handle(), &readFd);
             }
-
             // For receiving console command output
-            if(noor::NetInterface::service_type::TCP_CONSOLE_APP_PROVIDER_SVC == type && inst->handle() > 0) {
+            else if(noor::NetInterface::service_type::TCP_CONSOLE_APP_PROVIDER_SVC == type && inst->handle() > 0) {
                 FD_SET(inst->handle(), &readFd);
             }
 
@@ -2629,8 +2638,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                         std::cout << "line: " << __LINE__ << " datastore channel: " << newFd << " IP: " << IP <<" port:" << ntohs(peer.sin_port) << std::endl;
                     }
                 }
-
-                if(type == noor::NetInterface::service_type::TCP_CONSOLE_APP_PROVIDER_SVC && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
+                else if(type == noor::NetInterface::service_type::TCP_CONSOLE_APP_PROVIDER_SVC && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
                     // accept a new connection 
                     struct sockaddr_in peer;
                     socklen_t peer_len = sizeof(peer);
@@ -2641,8 +2649,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                         std::cout << "line: " << __LINE__ << " console channel: " << newFd << " IP: " << IP <<" port:" << ntohs(peer.sin_port) << std::endl;
                     }
                 }
-
-                if(type == noor::NetInterface::service_type::TCP_WEB_APP_PROVIDER_SVC && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
+                else if(type == noor::NetInterface::service_type::TCP_WEB_APP_PROVIDER_SVC && inst->handle() > 0 && FD_ISSET(inst->handle(), &readFd)) {
                     // accept a new connection 
                     struct sockaddr_in peer;
                     socklen_t peer_len = sizeof(peer);
@@ -2738,10 +2745,11 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                                 }
                                                 return(false);
                                             });
+                                            return(iter!= std::get<0>(ent)->tcp_connections().end());
                                         }
                                         return(false);
                                     });
-                                    if(channel > 0 ) {
+                                    if(it!= services.end() && channel > 0 ) {
                                         //send to web-proxy to device.
                                         std::cout << "line: " << __LINE__ << " IP: " << IP << std::endl;
                                         auto ret = tcp_tx(channel, request);
