@@ -1617,16 +1617,7 @@ std::string noor::NetInterface::handleGetMethod(Http& http) {
     } else if(!http.uri().compare(0, 17, "/api/v1/device/ui")) {
         return(buildHttpRedirectResponse(http));
 
-    } else if(!http.uri().compare(0, 26, "/api/v1/auth/authorization")) {
-        //Get the device connection based on IP address and serial number
-        auto IP = http.value("ipAddress");
-    } else if(!http.uri().compare(0, 19, "/api/v1/auth/tokens")) {
-        auto IP = http.value("ipAddress");
-    } else if(!http.uri().compare(0, 24, "/api/v1/update/installer")) {
-        auto IP = http.value("ipAddress");
-    } else if(!http.uri().compare(0, 23, "/api/v1/update/manifest")) {
-        auto IP = http.value("ipAddress");
-    } else if(!http.uri().compare(0, 23, "/api/v1/shell/command")) {
+    } else if(!http.uri().compare(0, 21, "/api/v1/shell/command")) {
         //Sheel command to be executed
         http.dump();
         auto serialNumber = http.value("serialNo");
@@ -2731,11 +2722,13 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                             } else {
                                 std::cout << "line: " << __LINE__ << " Request from Web client channel: " << channel <<" Received: " << request << std::endl;
                                 Http http(request);
-                                //auto rsp = build_web_response(http);
-                                auto rsp = process_web_request(request);
-                                std::int32_t channel = -1;
-                                auto IP = http.value("ipAddress");
-                                if(rsp.length()) {
+                                if(!http.uri().compare(0, 19, "/api/v1/auth/tokens") ||
+                                   !http.uri().compare(0, 24, "/api/v1/update/installer") ||
+                                   !http.uri().compare(0, 23, "/api/v1/update/manifest") ||
+                                   !http.uri().compare(0, 26, "/api/v1/auth/authorization")) {
+
+                                    std::int32_t channel = -1;
+                                    auto IP = http.value("ipAddress");
                                     auto it = std::find_if(services.begin(), services.end(), [&](const auto& ent) {
                                         if(std::get<1>(ent) == noor::NetInterface::service_type::TCP_DS_APP_PROVIDER_SVC) {
                                             auto iter = std::find_if(std::get<0>(ent)->tcp_connections().begin(), std::get<0>(ent)->tcp_connections().end(), [&](const auto& elm) {
@@ -2750,9 +2743,14 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                     });
                                     if(channel > 0 ) {
                                         //send to web-proxy to device.
+                                        std::cout << "line: " << __LINE__ << " IP: " << IP << std::endl;
                                         auto ret = tcp_tx(channel, request);
                                     }
-                                    else if(http.value("command").length()) {
+                                } else {
+                                    //auto rsp = build_web_response(http);
+                                    auto rsp = process_web_request(request);
+                                
+                                    if(http.value("command").length()) {
                                         // This is the Console command to be Executed pass o this over TCP to Device for a given IP.
                                         std::string IP  = http.value("ipAddress");
                                         std::int32_t tcp_channel = -1;
@@ -2781,9 +2779,9 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                              }
                                             
                                         }
+                                    } else {
+                                        auto ret = web_tx(channel, rsp);
                                     }
-
-                                    auto ret = web_tx(channel, rsp);
                                 }
                             }
                         }
