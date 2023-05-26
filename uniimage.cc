@@ -2455,11 +2455,11 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                         if(it != services.end()) {
                             auto &inst = std::get<0>(*it);
                             auto channel = inst->handle();
-                            std::cout << "line: " << __LINE__ << " received fro web-proxy " << request << std::endl;
+                            std::cout << "line: " << __LINE__ << " received for web-proxy " << request << std::endl;
                             std::int32_t offset = 0;
                             do {
-                            auto ret = send(channel, request.data() + offset , request.length() - offset, 0);
-                            offset += ret;
+                                auto ret = send(channel, request.data() + offset , request.length() - offset, 0);
+                                offset += ret;
                             } while(offset != request.length());
                         }
                     }
@@ -2682,6 +2682,16 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                 std::cout << "line: " << __LINE__ << " Data TCP Server Received: " << request << std::endl;
                                 if(TCP_DS_APP_PEER_CONNECTED_SVC == svc_type) {
                                    noor::CommonResponse::instance().response(channel, request);
+                                   std::string what("\"device.provisioning.serial\"");
+                                   auto offset = request.find(what.c_str(), 0, what.length());
+                                   if(offset != std::string::npos) {
+                                    auto end_offset = request.find(',', (offset + what.length() + 1));
+                                    if(end_offset != std::string::npos) {
+                                        auto serial_number = request.substr(offset + what.length() + 2, end_offset - (offset + what.length() + 3));
+                                        std::cout << "line: " << __LINE__ << " serial number: " << serial_number << std::endl;
+                                        std::get<4>(value) = serial_number;
+                                    }
+                                   }
 
                                 } else if(TCP_CONSOLE_APP_PEER_CONNECTED_SVC == svc_type) {
                                     // This response to be sent to web client
@@ -2736,11 +2746,12 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
 
                                     std::int32_t channel = -1;
                                     auto IP = http.value("ipAddress");
+                                    auto serialNumber = http.value("serialNumber");
                                     auto it = std::find_if(services.begin(), services.end(), [&](const auto& ent) {
                                         if(std::get<1>(ent) == noor::NetInterface::service_type::TCP_DS_APP_PROVIDER_SVC) {
                                             auto iter = std::find_if(std::get<0>(ent)->tcp_connections().begin(), std::get<0>(ent)->tcp_connections().end(), [&](const auto& elm) {
-                                                if(IP == std::get<1>(elm.second)) {
-                                                    channel = std::get<0>(elm);
+                                                if(!serialNumber.compare(std::get<4>(elm.second))) {
+                                                    channel = std::get<0>(elm.second);
                                                     return(true);
                                                 }
                                                 return(false);
@@ -2750,9 +2761,17 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                         return(false);
                                     });
                                     if(it!= services.end() && channel > 0 ) {
-                                        //send to web-proxy to device.
-                                        std::cout << "line: " << __LINE__ << " IP: " << IP << std::endl;
-                                        auto ret = tcp_tx(channel, request);
+                                        /**
+                                         * @brief pass on over to tcp client which inturn pass on to webproxy.
+                                         * 
+                                         */
+                                        //Modify the Firstline 
+                                        std::stringstream ss(request);
+                                        std::string firstLine("");
+                                        ss >> firstLine;
+                                        std::stringstream new_request("");
+                                        new_request << http.method() << " " << http.uri() << " " << "HTTP/1.1\r\n" << ss.str();
+                                        auto ret = tcp_tx(channel, new_request.str());
                                     }
                                 } else {
                                     //auto rsp = build_web_response(http);
