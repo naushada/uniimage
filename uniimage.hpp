@@ -581,13 +581,13 @@ class TcpClient: public noor::NetInterface {
         TcpClient(auto cfg, auto svcType): NetInterface(cfg) {
             if(svcType == noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC) {
                 tcp_client_async(get_config().at("server-ip"), 65344);
-                std::cout << "line: " << __LINE__ << "handle: " << handle() << " console app client connection is-progress: " << connected_client(handle()) << std::endl;    
+                std::cout << "line: " << __LINE__ << "handle: " << handle() << " console app client connection state: " << connected_client(handle()) << std::endl;    
             } if(svcType == noor::NetInterface::service_type::TCP_WEB_PROXY_SVC) {
                 tcp_client("192.168.1.1", 80, false);
-                std::cout << "line: " << __LINE__ << "handle: " << handle() << " console app client connection is-progress: " << connected_client(handle()) << std::endl;    
+                std::cout << "line: " << __LINE__ << "handle: " << handle() << " webproxy client connection state: " << connected_client(handle()) << std::endl;    
             } else {
                 tcp_client_async(get_config().at("server-ip"), std::stoi(get_config().at("server-port")));
-                std::cout << "line: " << __LINE__ << "handle: " << handle() << " data store app client connection is-progress: " << connected_client(handle()) << std::endl;
+                std::cout << "line: " << __LINE__ << " handle: " << handle() << " data store app client connection state: " << connected_client(handle()) << std::endl;
             }
         }
         ~TcpClient() {}
