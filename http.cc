@@ -127,7 +127,7 @@ void noor::Http::parse_header(const std::string& in)
    */
   std::getline(input, line_str);
 
-  auto offset = input.str().find_last_of("\r\n\r\n", input.str().length(), 4);
+  auto offset = input.str().find("\r\n\r\n", 0);
   if(std::string::npos != offset) {
     //HTTP Header part
     auto header = input.str().substr(0, offset);
@@ -138,11 +138,11 @@ void noor::Http::parse_header(const std::string& in)
 
       line_str.clear();
       std::getline(ss, line_str);
-      offset = line_str.find_first_of(": ");
+      offset = line_str.find(": ");
       auto key = line_str.substr(0, offset);
       auto value = line_str.substr(offset+2);
       //getting rid of trailing \r\n
-      offset = value.find_first_of("\r\n");
+      offset = value.find("\r\n");
       value = value.substr(0, offset);
       //std::cout <<"line: " << __LINE__ << " key: " << key << " value: " << value << std::endl;
       if(!key.empty() && !value.empty()) {

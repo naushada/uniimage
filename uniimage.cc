@@ -2352,7 +2352,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 if(channel > 0 && type == noor::NetInterface::service_type::UNIX && FD_ISSET(channel, &fdList)) {
                     //Received response from Data store
                     std::string request("");
-                    std::cout << "From DS line: " << __LINE__<<" Response received " << std::endl;
+                    std::cout << "line: " << __LINE__<<" Response received From data store" << std::endl;
                     auto req = inst->uds_rx();
                     if(!req.m_response.length()) {
                         ::close(channel);
@@ -2368,7 +2368,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 }
                 else if(channel > 0 && type == noor::NetInterface::service_type::TCP_WEB_PROXY_SVC && FD_ISSET(channel, &fdList)) {
                     // send to tcp server (tcp_tx)
-                    //send to DS APP Consumer 
+                    
                     std::string rsp("");
                     auto ret = recv(channel, rsp.data(), 2048, 0);
                     if(ret > 0) {
@@ -2387,7 +2387,6 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                         }
                     }
                 }
-
                 //The TCP client might be connected
                 else if(channel > 0 && type == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdWrite)) {
                     //TCP connection established successfully.
@@ -2782,7 +2781,9 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                         }
                                         new_request << "\r\n" << http.body();
                                         #endif
+                                        std::cout << "line: " << __LINE__ << " Sending to TCP Client on channel: " << channel << " length: " << request.length() << std::endl; 
                                         auto ret = tcp_tx(channel, request);
+                                        std::cout << "line: " << __LINE__ << " ret: " << ret << std::endl;
                                     }
                                 } else {
                                     //auto rsp = build_web_response(http);
