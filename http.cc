@@ -155,7 +155,19 @@ void noor::Http::parse_header(const std::string& in)
 std::string noor::Http::get_header(const std::string& in)
 {
   std::string header("");
-  auto offset = in.find_last_of("\r\n\r\n", in.length(), 4);
+  #if 0
+  std::string what("Content-Type: multibyte/form-data; boundary=");
+  auto offset_start = in.find(what, 0);
+  if(offset_start != std::string::npos) {
+    //Get the boundary delimeter
+    auto offset_end = in.find("\r\n", (offset_start + what.length()));
+    if(offset_end != std::string::npos) {
+        auto delm = in.substr(offset_start + what.length(), offset_end);
+        std::cout << "line: " << __LINE__ << " the delimeter is " << delm << std::endl;
+    }
+  }
+  #endif
+  auto offset = in.find("\r\n\r\n", 0);
   if(std::string::npos != offset) {
     header = in.substr(0, offset);
     //std::cout << "line: " << __LINE__ << " HTTP Header " << header << std::endl;

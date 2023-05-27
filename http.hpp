@@ -91,6 +91,9 @@ class noor::Http {
         void parse_header(const std::string& in);
         std::string get_header(const std::string& in);
         std::string get_body(const std::string& in);
+        const auto& params() {
+            return(m_params);
+        }
 
     private:
         std::unordered_map<std::string, std::string> m_params;

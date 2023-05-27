@@ -1410,14 +1410,14 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
         std::cout << "line: " << __LINE__ << " closed" << std::endl;
         return(std::string().length());
     } else if(len > 0) {
-        std::cout << "line: " << __LINE__ << " len: " << len << std::endl;
+        //std::cout << "line: " << __LINE__ << " len: " << len << std::endl;
         std::uint32_t payload_len; 
         std::istringstream istrstr;
         istrstr.rdbuf()->pubsetbuf(arr.data(), len);
         istrstr.read(reinterpret_cast<char *>(&payload_len), sizeof(payload_len));
         std::int32_t offset = 0;
         payload_len = ntohl(payload_len);
-        std::cout << "line: " << __LINE__ << " tcp payload length: " << payload_len << std::endl;
+        //std::cout << "line: " << __LINE__ << " tcp payload length: " << payload_len << std::endl;
 
         std::unique_ptr<char[]> payload = std::make_unique<char[]>(payload_len);
         do {
@@ -1431,7 +1431,7 @@ std::int32_t noor::NetInterface::tcp_rx(std::string& data) {
                 
         if(offset == payload_len) {
             std::string ss((char *)payload.get(), payload_len);
-            std::cout <<"line: "<< __LINE__ << " From TCP Client Received: " << ss << std::endl;
+            //std::cout <<"line: "<< __LINE__ << " From TCP Client Received: " << ss << std::endl;
             data = ss;
             return(payload_len);
         }
@@ -1769,38 +1769,37 @@ std::int32_t noor::NetInterface::web_rx(std::int32_t channel, std::string& data)
     std::array<char, 2048> arr;
     arr.fill(0);
     std::int32_t len = -1;
-    len = recv(channel, arr.data(), arr.size(), 0);
+    len = recv(channel, arr.data(), arr.size(), MSG_PEEK);
     if(!len) {
         std::cout << "function: "<<__FUNCTION__ << " line: " << __LINE__ << " channel: " << channel << " be closed" << std::endl;
+        arr.fill(0);
+        len = recv(channel, arr.data(), arr.size(), 0);
         return(len);
 
     } else if(len > 0) {
         std::string ss(arr.data(), len);
-        std::cout << "HTTP:" << std::endl << ss << std::endl;
+        //std::cout << "HTTP:" << std::endl << ss << std::endl;
         Http http(ss);
         std::cout << "line: " << __LINE__ << " URI: "   << http.uri()    << std::endl;
         std::cout << "line: " << __LINE__ << " Header " << http.header() << std::endl;
-        std::cout << "line: " << __LINE__ << " Body "   << http.body()   << std::endl;
+        //std::cout << "line: " << __LINE__ << " Body "   << http.body()   << std::endl;
         std::uint32_t offset = 0;
         auto cl = http.value("Content-Length");
         size_t payload_len = 0;
 
         if(!cl.length()) {
             std::cout << "line: " << __LINE__ << " Content-Length is not present" << std::endl;
+            arr.fill(0);
+            len = recv(channel, arr.data(), arr.size(), 0);
+            std::string ss(arr.data(), len);
             data = ss;
             return(data.length());
 
         } else {
             std::cout << "function: "<< __FUNCTION__ << " line: " << __LINE__ <<" value of Content-Length " << cl << std::endl;
-            payload_len = std::stoi(cl);
-            if(len == (payload_len + http.header().length())) {
-                //We have received the full HTTP packet
-                data = ss;
-                return(data.length());
-
-            } else {
+            {
                 //compute the effective length
-                payload_len = (std::stoi(cl) + http.header().length() - len);
+                payload_len = (std::stoi(cl) + http.header().length());
                 std::unique_ptr<char[]> payload = std::make_unique<char[]>(payload_len);
                 std::int32_t tmp_len = 0;
                 do {
@@ -1814,11 +1813,12 @@ std::int32_t noor::NetInterface::web_rx(std::int32_t channel, std::string& data)
                 } while(offset != payload_len);
 
                 if(offset == payload_len) {
-                    std::string header(arr.data(), len);
+                    //std::string header(arr.data(), len);
                     std::string ss((char *)payload.get(), payload_len);
-                    std::string request = header + ss;
-                    std::cout << "function: "<<__FUNCTION__ <<" line: " <<__LINE__ << " From Web Client Received: " << request << std::endl;
+                    //std::string request = header + ss;
+                    //std::cout << "function: "<<__FUNCTION__ <<" line: " <<__LINE__ << " From Web Client Received: " << request << std::endl;
                     data = ss;
+                    std::cout << "line: " << __LINE__ << "Complete Request length is " << payload_len << std::endl;
                     return(data.length());
                 }
             }
@@ -2737,7 +2737,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                 FD_CLR(channel, &readFd);
                                 //auto it = inst->web_connections().erase(channel);
                             } else {
-                                std::cout << "line: " << __LINE__ << " Request from Web client channel: " << channel <<" Received: " << request << std::endl;
+                                std::cout << "line: " << __LINE__ << " Request from Web client channel: " << channel << std::endl; //<<" Received: " << request << std::endl;
                                 Http http(request);
                                 if(!http.uri().compare(0, 19, "/api/v1/auth/tokens") ||
                                    !http.uri().compare(0, 24, "/api/v1/update/installer") ||
@@ -2747,10 +2747,11 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                     std::int32_t channel = -1;
                                     auto IP = http.value("ipAddress");
                                     auto serialNumber = http.value("serialNumber");
+
                                     auto it = std::find_if(services.begin(), services.end(), [&](const auto& ent) {
                                         if(std::get<1>(ent) == noor::NetInterface::service_type::TCP_DS_APP_PROVIDER_SVC) {
                                             auto iter = std::find_if(std::get<0>(ent)->tcp_connections().begin(), std::get<0>(ent)->tcp_connections().end(), [&](const auto& elm) {
-                                                if(!serialNumber.compare(std::get<4>(elm.second))) {
+                                                if(serialNumber.length() && !serialNumber.compare(std::get<4>(elm.second))) {
                                                     channel = std::get<0>(elm.second);
                                                     return(true);
                                                 }
@@ -2766,12 +2767,22 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                          * 
                                          */
                                         //Modify the Firstline 
+                                        #if 0
                                         std::stringstream ss(request);
                                         std::string firstLine("");
                                         ss >> firstLine;
                                         std::stringstream new_request("");
-                                        new_request << http.method() << " " << http.uri() << " " << "HTTP/1.1\r\n" << ss.str();
-                                        auto ret = tcp_tx(channel, new_request.str());
+                                        new_request << http.method() << " " << http.uri() << " " << "HTTP/1.1\r\n";
+                                        for(auto it=http.params().begin(); it!= http.params().end(); ++it) {
+                                            if(!it->first.compare("GET") || !it->first.compare("ipAddress") || !it->first.compare("port") || !it->first.compare("serialNumber")) {
+                                                continue;
+                                            } else {
+                                                new_request << it->first << ": " << it->second << "\r\n";
+                                            }
+                                        }
+                                        new_request << "\r\n" << http.body();
+                                        #endif
+                                        auto ret = tcp_tx(channel, request);
                                     }
                                 } else {
                                     //auto rsp = build_web_response(http);
