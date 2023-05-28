@@ -19,6 +19,9 @@
 
 #include "uniimage.hpp"
 #include "http.hpp"
+
+using json = nlohmann::json;
+
 /**
  * @brief 
  * 

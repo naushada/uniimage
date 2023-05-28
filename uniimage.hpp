@@ -35,6 +35,7 @@
 #include <getopt.h>
 #include <atomic>
 
+
 #if 0
 #include <bsoncxx/json.hpp>
 #include <bsoncxx/types.hpp>
@@ -45,6 +46,7 @@
 #include <bsoncxx/string/to_string.hpp>
 #endif
 
+#include "json.hpp"
 #include "http.hpp"
 
 std::uint32_t from_json_array_to_map(const std::string json_obj, std::unordered_map<std::string, std::string>& out);
