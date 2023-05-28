@@ -2741,6 +2741,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                 if(!http.uri().compare(0, 19, "/api/v1/auth/tokens") ||
                                    !http.uri().compare(0, 24, "/api/v1/update/installer") ||
                                    !http.uri().compare(0, 23, "/api/v1/update/manifest") ||
+                                   !http.uri().compare(0, 22, "/api/v1/template/apply") ||
                                    !http.uri().compare(0, 26, "/api/v1/auth/authorization")) {
 
                                     std::int32_t channel = -1;
