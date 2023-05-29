@@ -2466,6 +2466,15 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                                         std::cout << "prefix: " << it.key() << " field: " << iter.value() << std::endl;
                                     }
                                 }
+                                for(auto it=json_obj.at("metadata").begin(); it != json_obj.at("metadata").end(); ++it) {
+
+                                    //std::cout << "line: " << __LINE__ << " ent.key() " << it.key() << " ent.value() " << it.value() << std::endl;
+                                    for(auto iter = it.value().begin(); iter != it.value().end(); ++iter) {
+                                        //std::cout << "line: " << __LINE__ << " iter.key() " << iter.key() << " iter.value() " << iter.value() << std::endl;
+                                        //DPs.emplace_back(std::tuple(it.key(), iter.value()));
+                                        std::cout << "prefix: " << it.key() << " field: " << iter.value() << std::endl;
+                                    }
+                                }
 
                                 for(auto&[prefix, value]: DPs) {
                                     std::cout << "line: " << __LINE__ << " prefix: " << prefix << " value: " << value << std::endl;
