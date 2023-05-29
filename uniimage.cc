@@ -2440,7 +2440,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 else if(channel > 0 && type == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdList)) {
                     //From TCP Server
                     std::string request("");
-                    auto req = inst->tcp_rx(request);
+                    auto req = inst->tcp_rx(channel, request);
                     std::cout << "line: "<< __LINE__ << " Response received from TCP Server length:" << req << std::endl;
                     if(!req && inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
                         ::close(channel);
@@ -2528,7 +2528,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 else if(channel > 0 && type == noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdList)) {
                     //From TCP Server
                     std::string request("");
-                    auto req = inst->tcp_rx(request);
+                    auto req = inst->tcp_rx(channel, request);
                     std::cout << "line: "<< __LINE__ << " Response received from TCP Server length:" << req << std::endl;
                     if(!req && inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
                         ::close(channel);
