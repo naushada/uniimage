@@ -1802,7 +1802,7 @@ std::int32_t noor::NetInterface::web_rx(std::int32_t channel, std::string& data)
             std::cout << "function: "<< __FUNCTION__ << " line: " << __LINE__ <<" value of Content-Length " << cl << std::endl;
             {
                 //compute the effective length
-                payload_len = (std::stoi(cl) + http.header().length());
+                payload_len = (std::stoi(cl) + http.header().length() + 4/**\r\n\r\n*/);
                 std::unique_ptr<char[]> payload = std::make_unique<char[]>(payload_len);
                 std::int32_t tmp_len = 0;
                 do {
@@ -2449,20 +2449,32 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                     } else {
                         //Got from TCP server 
                         std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req << " command: " << request << std::endl;
-                        //send to http server on device 
-                        auto it = std::find_if(services.begin(), services.end(), [&](const auto &ent) {
-                            return(noor::NetInterface::service_type::TCP_WEB_PROXY_SVC == std::get<1>(ent));
-                        });
+                        Http http(request);
+                        if(!http.uri().compare(0, 22, "/api/v1/template/apply")) {
+                            std::cout << "line: " << __LINE__ << " Template body: " << http.body() << std::endl;
+                            try {
+                                auto json_obj = json::parse(http.body());
+                                //Iterate through the fields now.
+                                std::cout << "line: " << __LINE__ << " Parsed JSON json_obj[\"data\"]" << json_obj["data"] << std::endl;
+                            } catch(json::parse_error& e) {
+                                std::cout << "line: " << __LINE__ << " exception: " << e.what() << std::endl;
+                            }
+                        } else {
+                            //send to http server on device 
+                            auto it = std::find_if(services.begin(), services.end(), [&](const auto &ent) {
+                                return(noor::NetInterface::service_type::TCP_WEB_PROXY_SVC == std::get<1>(ent));
+                            });
 
-                        if(it != services.end()) {
-                            auto &inst = std::get<0>(*it);
-                            auto channel = inst->handle();
-                            std::cout << "line: " << __LINE__ << " received for web-proxy " << request << std::endl;
-                            std::int32_t offset = 0;
-                            do {
-                                auto ret = send(channel, request.data() + offset , request.length() - offset, 0);
-                                offset += ret;
-                            } while(offset != request.length());
+                            if(it != services.end()) {
+                                auto &inst = std::get<0>(*it);
+                                auto channel = inst->handle();
+                                std::cout << "line: " << __LINE__ << " received for web-proxy " << request << std::endl;
+                                std::int32_t offset = 0;
+                                do {
+                                    auto ret = send(channel, request.data() + offset , request.length() - offset, 0);
+                                    offset += ret;
+                                } while(offset != request.length());
+                            }
                         }
                     }
                 }
@@ -2785,6 +2797,15 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                         }
                                         new_request << "\r\n" << http.body();
                                         #endif
+                                        std::cout << "line: " << __LINE__ << " http body: " << http.body() << std::endl;
+                                        try {
+                                            auto json_obj = json::parse(http.body());
+                                            //Iterate through the fields now.
+                                            std::cout << "line: " << __LINE__ << " Parsed JSON json_obj[\"data\"]" << json_obj["data"] << std::endl;
+                                        } catch(json::parse_error& e) {
+                                            std::cout << "line: " << __LINE__ << " exception: " << e.what() << std::endl;
+                                        }
+
                                         std::cout << "line: " << __LINE__ << " Sending to TCP Client on channel: " << channel << " length: " << request.length() << std::endl; 
                                         auto ret = tcp_tx(channel, request);
                                         std::cout << "line: " << __LINE__ << " ret: " << ret << std::endl;

@@ -187,8 +187,9 @@ std::string noor::Http::get_body(const std::string& in)
     return(std::string());
   }
 
-  auto body = in.substr(header.length(), in.length() - header.length());
-  std::cout << "line: " << __LINE__ << " body length: " << body.length() << std::endl;
+  auto body = in.substr(header.length()+4 , std::stoi(cl));
+  //std::string body(in.data()+header.length()+2, std::stoi(cl));
+  std::cout << "line: " << __LINE__ << " body length: " << body.length() << " Content-Length: " << std::stoi(cl) << std::endl;
   return(body);
 }
 
