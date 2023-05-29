@@ -2452,10 +2452,25 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                         Http http(request);
                         if(!http.uri().compare(0, 22, "/api/v1/template/apply")) {
                             std::cout << "line: " << __LINE__ << " Template body: " << http.body() << std::endl;
+                            std::vector<std::tuple<std::string, std::string>> DPs;
                             try {
                                 auto json_obj = json::parse(http.body());
                                 //Iterate through the fields now.
-                                std::cout << "line: " << __LINE__ << " Parsed JSON json_obj[\"data\"]" << json_obj["data"] << std::endl;
+                                //std::cout << "line: " << __LINE__ << " Parsed JSON json_obj[\"data\"]" << json_obj["data"] << std::endl;
+                                for(auto it=json_obj.at("data").begin(); it != json_obj.at("data").end(); ++it) {
+
+                                    //std::cout << "line: " << __LINE__ << " ent.key() " << it.key() << " ent.value() " << it.value() << std::endl;
+                                    for(auto iter = it.value().begin(); iter != it.value().end(); ++iter) {
+                                        //std::cout << "line: " << __LINE__ << " iter.key() " << iter.key() << " iter.value() " << iter.value() << std::endl;
+                                        //DPs.emplace_back(std::tuple(it.key(), iter.value()));
+                                        std::cout << "prefix: " << it.key() << " field: " << iter.value() << std::endl;
+                                    }
+                                }
+
+                                for(auto&[prefix, value]: DPs) {
+                                    std::cout << "line: " << __LINE__ << " prefix: " << prefix << " value: " << value << std::endl;
+                                }
+
                             } catch(json::parse_error& e) {
                                 std::cout << "line: " << __LINE__ << " exception: " << e.what() << std::endl;
                             }
@@ -2801,7 +2816,24 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                         try {
                                             auto json_obj = json::parse(http.body());
                                             //Iterate through the fields now.
-                                            std::cout << "line: " << __LINE__ << " Parsed JSON json_obj[\"data\"]" << json_obj["data"] << std::endl;
+                                            std::vector<std::tuple<std::string, std::string>> DPs;
+
+                                            for(auto it=json_obj.at("data").begin(); it != json_obj.at("data").end(); ++it) {
+
+                                                //std::cout << "line: " << __LINE__ << " ent.key() " << it.key() << " ent.value() " << it.value() << std::endl;
+                                                for(auto iter = it.value().begin(); iter != it.value().end(); ++iter) {
+                                                    //std::cout << "line: " << __LINE__ << " iter.key() " << iter.key() << " iter.value() " << iter.value() << std::endl;
+                                                    if(iter.value().type() == json::value_t::number_integer) {
+                                                        //DPs.emplace_back(std::tuple(it.key(), std::to_string(iter.value().value)));
+                                                    } else {
+                                                        //DPs.emplace_back(std::tuple(it.key(), iter.value()));
+                                                    }
+                                                    std::cout << "prefix: " << it.key() << " field: " << iter.value() << std::endl;
+                                                }
+                                            }
+                                            for(auto&[prefix, value]: DPs) {
+                                               std::cout << "line: " << __LINE__ << " prefix: " << prefix << " value: " << value << std::endl;
+                                            }
                                         } catch(json::parse_error& e) {
                                             std::cout << "line: " << __LINE__ << " exception: " << e.what() << std::endl;
                                         }
