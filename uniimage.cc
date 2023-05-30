@@ -2720,17 +2720,12 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                 std::cout << "line: " << __LINE__ << " Data TCP Server Received: " << request << std::endl;
                                 if(TCP_DS_APP_PEER_CONNECTED_SVC == svc_type) {
                                    noor::CommonResponse::instance().response(channel, request);
-                                   std::string what("\"device.provisioning.serial\"");
-                                   auto offset = request.find(what.c_str(), 0, what.length());
-                                   if(offset != std::string::npos) {
-                                    auto end_offset = request.find(',', (offset + what.length() + 1));
-                                    if(end_offset != std::string::npos) {
-                                        auto serial_number = request.substr(offset + what.length() + 2, end_offset - (offset + what.length() + 3));
-                                        std::cout << "line: " << __LINE__ << " serial number: " << serial_number << std::endl;
+                                   auto json_arr = json::parse(request);
+                                   std::cout << "line: " << __LINE__ << " serial number " << json_arr[0]["device.provisioning.serial"] << std::endl;
+                                   auto serial_number = json_arr[0]["device.provisioning.serial"];
+                                   if(serial_number != nullptr) {
                                         std::get<4>(value) = serial_number;
-                                    }
                                    }
-
                                 } else if(TCP_CONSOLE_APP_PEER_CONNECTED_SVC == svc_type) {
                                     // This response to be sent to web client
                                     auto it = std::find_if(services.begin(), services.end(), [&](auto& ent) -> bool {
