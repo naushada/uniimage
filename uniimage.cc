@@ -2839,14 +2839,16 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                         std::cout << "line: " << __LINE__ << " http body: " << http.body() << std::endl;
                                         try {
                                             auto json_obj = json::parse(http.body());
-                                            auto values = json::object();
+                                            //auto values = json::object();
+                                            
+                                            //auto values = json::object();
                                             std::stringstream ss;
-                                            ss << "{";
+                                            ss << "[{";
                                             //Iterate through the fields now.
-                                            std::vector<std::tuple<std::string, std::string>> DPs;
+                                            //std::vector<std::tuple<std::string, std::string>> DPs;
+                                            //std::vector<std::pair<std::string, std::string>> vecObj;
 
                                             for(auto it=json_obj.at("data").begin(); it != json_obj.at("data").end(); ++it) {
-
                                                 //std::cout << "line: " << __LINE__ << " ent.key() " << it.key() << " ent.value() " << it.value() << std::endl;
                                                 for(auto iter = it.value().begin(); iter != it.value().end(); ++iter) {
                                                     //std::cout << "line: " << __LINE__ << " iter.key() " << iter.key() << " iter.value() " << iter.value() << std::endl;
@@ -2858,25 +2860,37 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                                     std::cout << "prefix: " << it.key() << " field: " << iter.value() << std::endl;
                                                     //values.at(it.key()) = iter.value();
                                                     //values << it.key() << iter.value();
-                                                    //ss << it.key() 
+                                                    if(!iter.value().is_object()) {
+                                                        ss << "\"" << it.key() << "\"" << ":" << iter.value() << ",";
+                                                    }
+                                                    #if 0
+                                                    if(iter.value().is_boolean()) {
+                                                        //vecObj.push_back(std::pair(it.key(), iter.value().is_boolean()));
+                                                    } else if(iter.value().is_number_integer()) {
+                                                        //vecObj.push_back(std::pair(it.key(), std::to_string(iter.value())));
+                                                    } else if(iter.value().is_object()) {
 
+                                                    } else if(iter.value().is_string()) {
+                                                        vecObj.push_back(std::pair(it.key(), iter.value()));
+                                                    }
+                                                    #endif
                                                 }
                                             }
-                                            std::cout << "line: " << __LINE__ << " value: " << values << std::endl;
-                                            json::array_t setVariable;
-                                            setVariable.push_back(values);
-                                            std::cout << "line: " << __LINE__ << " setVariable: " << setVariable << std::endl;
+                                            //get rid of last ","
+                                            auto setVariable = ss.str().substr(0, ss.str().length() - 1);
+                                            setVariable += "}]";
 
-                                            for(auto&[prefix, value]: DPs) {
-                                               std::cout << "line: " << __LINE__ << " prefix: " << prefix << " value: " << value << std::endl;
-                                            }
+                                            //values.push_back(reqObj);
+                                            //std::cout << "line: " << __LINE__ << " value: " << values << std::endl;
+                                            //json::array_t setVariable;
+                                            //setVariable.push_back(reqObj);
+                                            std::cout << "line: " << __LINE__ << " setVariable: " << setVariable << std::endl;
+                                            std::cout << "line: " << __LINE__ << " Sending to TCP Client on channel: " << channel << " length: " << request.length() << std::endl; 
+                                            auto ret = tcp_tx(channel, setVariable);
+                                            std::cout << "line: " << __LINE__ << " ret: " << ret << std::endl;
                                         } catch(json::parse_error& e) {
                                             std::cout << "line: " << __LINE__ << " exception: " << e.what() << std::endl;
                                         }
-
-                                        std::cout << "line: " << __LINE__ << " Sending to TCP Client on channel: " << channel << " length: " << request.length() << std::endl; 
-                                        auto ret = tcp_tx(channel, request);
-                                        std::cout << "line: " << __LINE__ << " ret: " << ret << std::endl;
                                     }
                                 } else {
                                     //auto rsp = build_web_response(http);
