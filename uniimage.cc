@@ -1511,6 +1511,37 @@ std::string noor::NetInterface::buildHttpResponseOK(Http& http, std::string body
     return(ss.str());
 }
 
+
+std::string noor::NetInterface::buildHttpResponse102Processing(Http& http, std::string body, std::string contentType)
+{
+    std::stringstream ss("");
+
+    ss << "HTTP/1.1 102 Processing\r\n"
+       << "Connection: "
+       << http.value("Connection")
+       << "\r\n"
+       << "Host: "
+       << http.value("Host")
+       << "\r\n"
+       << "Access-Control-Allow-Origin: *\r\n";
+
+    if(body.length()) {
+        ss << "Content-Length: "
+           << body.length()
+           << "\r\n"
+           << "Content-Type: "
+           << contentType
+           <<"\r\n"
+           << "\r\n"
+           << body;
+
+    } else {
+        ss << "Content-Length: 0\r\n";
+    }
+    return(ss.str());
+}
+
+
 std::string noor::NetInterface::buildHttpRedirectResponse(Http& http, std::string rsp_body) {
     std::stringstream ss("");
     if(!rsp_body.length()) {
@@ -2798,7 +2829,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                    !http.uri().compare(0, 22, "/api/v1/template/apply") ||
                                    !http.uri().compare(0, 26, "/api/v1/auth/authorization")) {
 
-                                    std::int32_t channel = -1;
+                                    std::int32_t device_channel = -1;
                                     auto IP = http.value("ipAddress");
                                     auto serialNumber = http.value("serialNumber");
 
@@ -2806,7 +2837,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                         if(std::get<1>(ent) == noor::NetInterface::service_type::TCP_DS_APP_PROVIDER_SVC) {
                                             auto iter = std::find_if(std::get<0>(ent)->tcp_connections().begin(), std::get<0>(ent)->tcp_connections().end(), [&](const auto& elm) {
                                                 if(serialNumber.length() && !serialNumber.compare(std::get<4>(elm.second))) {
-                                                    channel = std::get<0>(elm.second);
+                                                    device_channel = std::get<0>(elm.second);
                                                     return(true);
                                                 }
                                                 return(false);
@@ -2815,7 +2846,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                         }
                                         return(false);
                                     });
-                                    if(it!= services.end() && channel > 0 ) {
+                                    if(it!= services.end() && device_channel > 0 ) {
                                         /**
                                          * @brief pass on over to tcp client which inturn pass on to webproxy.
                                          * 
@@ -2840,7 +2871,14 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                         try {
                                             auto json_obj = json::parse(http.body());
                                             //auto values = json::object();
-                                            
+                                            std::stringstream rsp;
+                                            rsp << "{" 
+                                                << "\"status\":\"received\""
+                                                <<"}";
+                                            auto web_rsp = buildHttpResponse102Processing(http, rsp.str());
+                                            if(web_rsp.length()) {
+                                                //web_tx(channel, web_rsp);
+                                            }
                                             //auto values = json::object();
                                             std::stringstream ss;
                                             ss << "[{";
@@ -2879,15 +2917,39 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                             //get rid of last ","
                                             auto setVariable = ss.str().substr(0, ss.str().length() - 1);
                                             setVariable += "}]";
-
+                                            rsp.str("");
+                                            rsp << "{" 
+                                                << "\"status\":\"parsing\""
+                                                <<"}";
+                                            web_rsp = buildHttpResponse102Processing(http, rsp.str());
+                                            if(web_rsp.length()) {
+                                                //web_tx(channel, web_rsp);
+                                            }
                                             //values.push_back(reqObj);
                                             //std::cout << "line: " << __LINE__ << " value: " << values << std::endl;
                                             //json::array_t setVariable;
                                             //setVariable.push_back(reqObj);
                                             std::cout << "line: " << __LINE__ << " setVariable: " << setVariable << std::endl;
                                             std::cout << "line: " << __LINE__ << " Sending to TCP Client on channel: " << channel << " length: " << request.length() << std::endl; 
-                                            auto ret = tcp_tx(channel, setVariable);
+                                            rsp.str("");
+                                            rsp << "{" 
+                                                << "\"status\":\"sent to device\""
+                                                <<"}";
+                                            web_rsp = buildHttpResponse102Processing(http, rsp.str());
+                                            if(web_rsp.length()) {
+                                                //web_tx(channel, web_rsp);
+                                            }
+                                            auto ret = tcp_tx(device_channel, setVariable);
                                             std::cout << "line: " << __LINE__ << " ret: " << ret << std::endl;
+                                            rsp.str("");
+                                            rsp << "{" 
+                                                << "\"status\":\"applied\""
+                                                <<"}";
+                                            web_rsp = buildHttpResponseOK(http, rsp.str(), "application/json");
+                                            if(web_rsp.length()) {
+                                                web_tx(channel, web_rsp);
+                                            }
+
                                         } catch(json::parse_error& e) {
                                             std::cout << "line: " << __LINE__ << " exception: " << e.what() << std::endl;
                                         }

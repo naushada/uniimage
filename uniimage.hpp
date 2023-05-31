@@ -437,6 +437,7 @@ class noor::NetInterface {
         std::string handleOptionsMethod(Http& http);
         std::string buildHttpRedirectResponse(Http& http, std::string rsp_body = "");
         std::string buildHttpResponseOK(Http& http, std::string body, std::string contentType);
+        std::string buildHttpResponse102Processing(Http& http, std::string body, std::string contentType="application/json");
         std::string get_contentType(std::string ext);
 
         virtual std::string onReceive(std::string in) {
