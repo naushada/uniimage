@@ -3066,7 +3066,7 @@ std::string noor::NetInterface::serialise(noor::Uniimage::EMP_COMMAND_TYPE cmd_t
     cmd = (noor::Uniimage::EMP_COMMAND_ID)(((cmd_type & 0x3 ) << 12) | (cmd & 0xFFF));
 
     std::uint32_t payload_len = req.length();
-    std::cout << "Payload length: " << payload_len << " REQUEST: " << req << std::endl;
+    std::cout << "line: " <<__LINE__ << " Payload length: " << payload_len << " REQUEST: " << req << std::endl;
     cmd = (noor::Uniimage::EMP_COMMAND_ID)htons(cmd);
     ++m_message_id;
     auto message_id = htons(m_message_id);
@@ -3099,9 +3099,11 @@ std::string noor::NetInterface::packArguments(const std::string& prefix, std::ve
 	    if(true == is_register_variable()) {
 	        // First argument will be callback , hence blank
             rsp << "[\"\", \"" <<  prefix << "\"";
+	    } else if(!prefix.compare(0, 1, "{")) {
+            rsp << "[" <<  prefix;
 	    } else {
             rsp << "[\"" <<  prefix << "\"";
-	    }
+        }
         result += rsp.str();
         rsp.str("");
     }
