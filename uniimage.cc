@@ -2514,7 +2514,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                         std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req << " command: " << request << std::endl;
                         Http http(request);
                         if(!http.uri().compare(0, 14, "/api/v1/db/set")) {
-                            setVariable(request);
+                            setVariable(http.body());
                             #if 0
                             std::cout << "line: " << __LINE__ << " Template body: " << http.body() << std::endl;
                             std::vector<std::tuple<std::string, std::string>> DPs;
@@ -3202,7 +3202,7 @@ std::int32_t noor::NetInterface::getVariable(const std::string& prefix, std::vec
 std::int32_t noor::NetInterface::setVariable(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter) {
     noor::Uniimage::EMP_COMMAND_TYPE cmd_type = noor::Uniimage::EMP_COMMAND_TYPE::Request;
     noor::Uniimage::EMP_COMMAND_ID cmd = noor::Uniimage::EMP_COMMAND_ID::SetVariable;
-    is_register_variable(true); 
+    is_register_variable(false); 
     std::string rsp = packArguments(prefix, fields, filter);
     std::string data = serialise(cmd_type, cmd, rsp);
     std::int32_t ret = uds_tx(data);
