@@ -430,6 +430,7 @@ class noor::NetInterface {
         std::int32_t registerGetVariable(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
         std::int32_t getSingleVariable(const std::string& prefix);
         std::int32_t getVariable(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
+        std::int32_t setVariable(const std::string& prefix, std::vector<std::string> fields = {}, std::vector<std::string> filter = {});
         std::string build_web_response(Http& http);
         std::string process_web_request(const std::string& req);
         std::string handleGetMethod(Http& http);
@@ -438,6 +439,7 @@ class noor::NetInterface {
         std::string buildHttpRedirectResponse(Http& http, std::string rsp_body = "");
         std::string buildHttpResponseOK(Http& http, std::string body, std::string contentType);
         std::string buildHttpResponse102Processing(Http& http, std::string body, std::string contentType="application/json");
+        std::string buildHttpPostRequest(Http& http, std::string uri, std::string body, std::string contentType="application/json");
         std::string get_contentType(std::string ext);
 
         virtual std::string onReceive(std::string in) {

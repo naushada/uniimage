@@ -1541,6 +1541,37 @@ std::string noor::NetInterface::buildHttpResponse102Processing(Http& http, std::
     return(ss.str());
 }
 
+std::string noor::NetInterface::buildHttpPostRequest(Http& http, std::string uri, std::string body, std::string contentType)
+{
+    std::stringstream ss("");
+
+    ss << "POST " 
+       << uri
+       << " HTTP/1.1\r\n"
+       << "Connection: "
+       << http.value("Connection")
+       << "\r\n"
+       << "Host: "
+       << http.value("Host")
+       << "\r\n"
+       << "Access-Control-Allow-Origin: *\r\n";
+
+    if(body.length()) {
+        ss << "Content-Length: "
+           << body.length()
+           << "\r\n"
+           << "Content-Type: "
+           << contentType
+           <<"\r\n"
+           << "\r\n"
+           << body;
+
+    } else {
+        ss << "Content-Length: 0\r\n";
+    }
+    return(ss.str());
+}
+
 
 std::string noor::NetInterface::buildHttpRedirectResponse(Http& http, std::string rsp_body) {
     std::stringstream ss("");
@@ -2482,7 +2513,9 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                         //Got from TCP server 
                         std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req << " command: " << request << std::endl;
                         Http http(request);
-                        if(!http.uri().compare(0, 22, "/api/v1/template/apply")) {
+                        if(!http.uri().compare(0, 14, "/api/v1/db/set")) {
+                            setVariable(request);
+                            #if 0
                             std::cout << "line: " << __LINE__ << " Template body: " << http.body() << std::endl;
                             std::vector<std::tuple<std::string, std::string>> DPs;
                             try {
@@ -2522,6 +2555,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                             } catch(json::parse_error& e) {
                                 std::cout << "line: " << __LINE__ << " exception: " << e.what() << std::endl;
                             }
+                            #endif
                         } else {
                             //send to http server on device 
                             auto it = std::find_if(services.begin(), services.end(), [&](const auto &ent) {
@@ -2881,7 +2915,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                             }
                                             //auto values = json::object();
                                             std::stringstream ss;
-                                            ss << "[{";
+                                            ss << "{";
                                             //Iterate through the fields now.
                                             //std::vector<std::tuple<std::string, std::string>> DPs;
                                             //std::vector<std::pair<std::string, std::string>> vecObj;
@@ -2916,7 +2950,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                             }
                                             //get rid of last ","
                                             auto setVariable = ss.str().substr(0, ss.str().length() - 1);
-                                            setVariable += "}]";
+                                            setVariable += "}";
                                             rsp.str("");
                                             rsp << "{" 
                                                 << "\"status\":\"parsing\""
@@ -2939,7 +2973,9 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                             if(web_rsp.length()) {
                                                 //web_tx(channel, web_rsp);
                                             }
-                                            auto ret = tcp_tx(device_channel, setVariable);
+
+                                            web_rsp = buildHttpPostRequest(http, "/api/v1/db/set", setVariable, "application/json");
+                                            auto ret = tcp_tx(device_channel, web_rsp);
                                             std::cout << "line: " << __LINE__ << " ret: " << ret << std::endl;
                                             rsp.str("");
                                             rsp << "{" 
@@ -3058,12 +3094,12 @@ std::string noor::NetInterface::packArguments(const std::string& prefix, std::ve
         //This can't be empty
         return(std::string());
     } else {
-	if(true == is_register_variable()) {
-	    // First argument will be callback , hence blank
+	    if(true == is_register_variable()) {
+	        // First argument will be callback , hence blank
             rsp << "[\"\", \"" <<  prefix << "\"";
-	} else {
+	    } else {
             rsp << "[\"" <<  prefix << "\"";
-	}
+	    }
         result += rsp.str();
         rsp.str("");
     }
@@ -3161,6 +3197,20 @@ std::int32_t noor::NetInterface::getVariable(const std::string& prefix, std::vec
     std::string response("");
     add_element_to_cache({cmd_type, cmd, message_id(), prefix, response});
     return(ret);
+}
+
+std::int32_t noor::NetInterface::setVariable(const std::string& prefix, std::vector<std::string> fields, std::vector<std::string> filter) {
+    noor::Uniimage::EMP_COMMAND_TYPE cmd_type = noor::Uniimage::EMP_COMMAND_TYPE::Request;
+    noor::Uniimage::EMP_COMMAND_ID cmd = noor::Uniimage::EMP_COMMAND_ID::SetVariable;
+    is_register_variable(true); 
+    std::string rsp = packArguments(prefix, fields, filter);
+    std::string data = serialise(cmd_type, cmd, rsp);
+    std::int32_t ret = uds_tx(data);
+    std::string response("");
+    add_element_to_cache({cmd_type, cmd, message_id(), prefix, response}); 
+    is_register_variable(false);
+    return(ret);
+
 }
 
 /**
