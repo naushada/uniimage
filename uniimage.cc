@@ -1061,6 +1061,7 @@ int main(std::int32_t argc, char *argv[]) {
             std::get<0>(ent.at(0))->getVariable("device", {{"machine"}, {"product"}, {"provisioning.serial"}});
             std::get<0>(ent.at(0))->getVariable("net.interface.common[]", {{"ipv4.address"}, {"ipv4.connectivity"}, {"ipv4.prefixlength"}});
             std::get<0>(ent.at(0))->getVariable("system.os", {{"version"}, {"buildnumber"}, {"name"}});
+            std::get<0>(ent.at(0))->getVariable("system.bootcheck.signature");
             //std::cout << "line: " << __LINE__ << " TCP_ASYNC: " << std::get<0>(ent.at(0))->handle() << " : " <<std::get<0>(ent.at(0))->connected_client(std::get<0>(ent.at(0))->handle())<< std::endl;
         //}
 
