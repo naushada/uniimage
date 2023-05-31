@@ -127,12 +127,14 @@ std::string noor::Uniimage::packArguments(const std::string& prefix, std::vector
         //This can't be empty
         return(std::string());
     } else {
-	if(true == m_is_reg_ds) {
-	    // First argument will be callback , hence blank
+        if(true == m_is_reg_ds) {
+            // First argument will be callback , hence blank
             rsp << "[\"\", \"" <<  prefix << "\"";
-	} else {
+        } else if(!prefix.compare(0, 1, "{")) {
+            rsp << "[" <<  prefix;
+        } else {
             rsp << "[\"" <<  prefix << "\"";
-	}
+        }
         result += rsp.str();
         rsp.str("");
     }
