@@ -2846,7 +2846,7 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                         }
                                         return(false);
                                     });
-                                    if(it!= services.end() && device_channel > 0 ) {
+                                    if(it!= services.end() && device_channel > 0 && !http.uri().compare(0, 22, "/api/v1/template/apply")) {
                                         /**
                                          * @brief pass on over to tcp client which inturn pass on to webproxy.
                                          * 
@@ -2953,6 +2953,17 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                         } catch(json::parse_error& e) {
                                             std::cout << "line: " << __LINE__ << " exception: " << e.what() << std::endl;
                                         }
+                                    } else {
+                                        auto ret = tcp_tx(device_channel, request);
+                                        std::cout << "line: " << __LINE__ << " ufw is sent to device of length: " << ret << std::endl;
+                                        std::stringstream rsp("");
+                                        rsp << "{" 
+                                            << "\"status\":\"success\""
+                                            <<"}";
+                                        auto  web_rsp = buildHttpResponseOK(http, rsp.str(), "application/json");
+                                            if(web_rsp.length()) {
+                                                web_tx(channel, web_rsp);
+                                            }
                                     }
                                 } else {
                                     //auto rsp = build_web_response(http);
