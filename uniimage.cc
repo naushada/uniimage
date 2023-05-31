@@ -2440,12 +2440,13 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 else if(channel > 0 && type == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC && FD_ISSET(channel, &fdList)) {
                     //From TCP Server
                     std::string request("");
-                    auto req = inst->tcp_rx(channel, request);
+                    auto req = inst->tcp_rx(request);
                     std::cout << "line: "<< __LINE__ << " Response received from TCP Server length:" << req << std::endl;
                     if(!req && inst->connected_client(channel) == noor::NetInterface::client_connection::Connected) {
                         ::close(channel);
                         inst->connected_client().erase(channel);
                         inst->handle(-1);
+                        std::cout << "line: " << __LINE__ << " Connection is closed now and will be attempted" << std::endl;
                     } else {
                         //Got from TCP server 
                         std::cout <<"line: " << __LINE__ << "Received from TCP server length: " << req << " command: " << request << std::endl;
@@ -2589,6 +2590,18 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
             }
         }
         else if(!conns) {
+            for(auto &[inst, type]: services) {
+                if(type == noor::NetInterface::service_type::TCP_DS_APP_CONSUMER_SVC_ASYNC) {
+                    if((inst->handle() < 0) && (!inst->get_config().at("protocol").compare("tcp"))) {
+                        inst->tcp_client_async(inst->get_config().at("server-ip"), std::stoi(inst->get_config().at("server-port")));
+                    }
+                } else if(type == noor::NetInterface::service_type::TCP_CONSOLE_APP_CONSUMER_SVC_ASYNC) {
+                    if((inst->handle() < 0) && (!inst->get_config().at("protocol").compare("tcp"))) {
+                        inst->tcp_client_async(inst->get_config().at("server-ip"), 65344);
+                    }
+                }
+            }
+            #if 0
             //time out happens
             auto it = std::find_if(services.begin(), services.end(), [&](auto& ent) {
                 auto type = std::get<1>(ent);
@@ -2608,7 +2621,7 @@ std::int32_t noor::NetInterface::start_client(std::uint32_t timeout_in_ms, std::
                 memset(wrFd, -1, sizeof(wrFd));
                 std::get<0>(*it)->tcp_client_async(std::get<0>(*it)->get_config().at("server-ip"), 65344);
             }
-
+            #endif
         }
     } /* End of while loop */
 }
@@ -2826,6 +2839,9 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                         std::cout << "line: " << __LINE__ << " http body: " << http.body() << std::endl;
                                         try {
                                             auto json_obj = json::parse(http.body());
+                                            auto values = json::object();
+                                            std::stringstream ss;
+                                            ss << "{";
                                             //Iterate through the fields now.
                                             std::vector<std::tuple<std::string, std::string>> DPs;
 
@@ -2840,8 +2856,17 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                                         //DPs.emplace_back(std::tuple(it.key(), iter.value()));
                                                     }
                                                     std::cout << "prefix: " << it.key() << " field: " << iter.value() << std::endl;
+                                                    //values.at(it.key()) = iter.value();
+                                                    //values << it.key() << iter.value();
+                                                    //ss << it.key() 
+
                                                 }
                                             }
+                                            std::cout << "line: " << __LINE__ << " value: " << values << std::endl;
+                                            json::array_t setVariable;
+                                            setVariable.push_back(values);
+                                            std::cout << "line: " << __LINE__ << " setVariable: " << setVariable << std::endl;
+
                                             for(auto&[prefix, value]: DPs) {
                                                std::cout << "line: " << __LINE__ << " prefix: " << prefix << " value: " << value << std::endl;
                                             }
