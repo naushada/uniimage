@@ -2983,6 +2983,8 @@ std::int32_t noor::NetInterface::start_server(std::uint32_t timeout_in_ms,
                                             rsp.str("");
                                             rsp << "{" 
                                                 << "\"status\":\"applied\""
+                                                << ", \"serialNumber\":"
+                                                << "\"" << serialNumber << "\""
                                                 <<"}";
                                             web_rsp = buildHttpResponseOK(http, rsp.str(), "application/json");
                                             if(web_rsp.length()) {
